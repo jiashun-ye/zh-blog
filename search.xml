@@ -585,7 +585,7 @@ CPNN。实际应用可据此取舍：若侧重极限精度且资源允许，优�
   </entry>
   <entry>
     <title>代码复现|朴素标签分布学习实践</title>
-    <url>/zh-blog/2025/09/12/%E4%BB%A3%E7%A0%81%E5%A4%8D%E7%8E%B0-%E6%9C%B4%E7%B4%A0%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%E5%AD%A6%E4%B9%A0%E5%AE%9E%E8%B7%B5/</url>
+    <url>/zh-blog/2025/09/12/%E4%BB%A3%E7%A0%81%E5%A4%8D%E7%8E%B0-%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%E5%AD%A6%E4%B9%A0%E7%9A%84%E6%9C%B4%E7%B4%A0%E5%AE%9E%E8%B7%B5/</url>
     <content><![CDATA[<p>本文对Xin Geng等人的论文《Facial Age Estimation by Learning from
 Label Distributions》（2011）及《Facial Age Estimation by Learning from
 Label Distributions》（2013）进行了复现。</p>
@@ -602,7 +602,7 @@ Distribution Learning）训练 CPNN，最终按既定协议在 Val
 href="https://aistudio.baidu.com/datasetdetail/45324">AI Studio
 数据集</a>）。这个数据集面向亚洲人脸年龄估计，提供了离散年龄标签及其对应的年龄后验分布文件，适合做分布级监督。我们只使用其中与年龄估计相关的部分，不涉及性别等其他属性；数据下载后按官方组织方式读取，再结合后续特征抽取与划分流程进行清洗与重排。</p>
 <p><img
-src="C:\Users\JiashunYe\my-zh-hexo-blog\source_posts\代码复现-朴素标签分布学习实践\MegaAge_Asian.png" /></p>
+src="https://qimuchuan.life/wp-content/uploads/2025/09/MegaAge_Asian.jpg" /></p>
 <p>特征提取器使用 MiVOLO（<a
 href="https://github.com/WildChlamydia/MiVOLO">GitHub</a>，<a
 href="https://arxiv.org/abs/2307.04616">论文</a>）。MiVOLO
@@ -610,7 +610,8 @@ href="https://arxiv.org/abs/2307.04616">论文</a>）。MiVOLO
 Transformer，我们在本复现中将其作为纯特征抽取器，把每张图像转为固定长度的数值向量；具体实现中采用人脸与人体分支拼接的设置，得到
 768 维
 embedding，并为所有样本重新编号。检测不到人脸或人脸区域过小的极少量样本会被直接剔除，以免引入噪声与异常分布。</p>
-<p><img src="age_distribution_overall.png" /></p>
+<p><img
+src="https://qimuchuan.life/wp-content/uploads/2025/09/age_distribution_overall.png" /></p>
 <p>数据划分采用 7:2:1 的固定比例：Train 用于参数学习，Test
 用于选超参数与早停，Val 仅用于最终打分与汇总。在这一协议下，Test
 不参与对外报告，从而尽量避免信息泄漏；Val
@@ -631,7 +632,8 @@ x)\)</span>作为实数预测，与真值计算 MAE，并在 Val 上做最终汇
 AdamW；训练全程遵循上面的早停与打印协议，并在结束时基于最佳 epoch 的 Val
 预测计算整体 MAE 与 0–70 各年龄的分龄
 MAE。接下来会在同一口径下补齐六个对比模型，以便形成可复现实验与对照表。</p>
-<p><img src="CPNN训练误差图.png" /></p>
+<p><img
+src="https://qimuchuan.life/wp-content/uploads/2025/09/CPNN训练误差图.png" /></p>
 ]]></content>
       <categories>
         <category>论文学习</category>
