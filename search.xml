@@ -601,6 +601,8 @@ Distribution Learning）训练 CPNN，最终按既定协议在 Val
 <p>数据来自 MegaAge-Asian（<a
 href="https://aistudio.baidu.com/datasetdetail/45324">AI Studio
 数据集</a>）。这个数据集面向亚洲人脸年龄估计，提供了离散年龄标签及其对应的年龄后验分布文件，适合做分布级监督。我们只使用其中与年龄估计相关的部分，不涉及性别等其他属性；数据下载后按官方组织方式读取，再结合后续特征抽取与划分流程进行清洗与重排。</p>
+<p><img src="斯分布和三角分布.png" /></p>
+<p><img src="a.jpg" /></p>
 <p><img src="MegaAge_Asian.png" /></p>
 <p>特征提取器使用 MiVOLO（<a
 href="https://github.com/WildChlamydia/MiVOLO">GitHub</a>，<a
@@ -609,7 +611,7 @@ href="https://arxiv.org/abs/2307.04616">论文</a>）。MiVOLO
 Transformer，我们在本复现中将其作为纯特征抽取器，把每张图像转为固定长度的数值向量；具体实现中采用人脸与人体分支拼接的设置，得到
 768 维
 embedding，并为所有样本重新编号。检测不到人脸或人脸区域过小的极少量样本会被直接剔除，以免引入噪声与异常分布。</p>
-<p><img src="./age_distribution_overall.png" /></p>
+<p><img src="age_distribution_overall.png" /></p>
 <p>数据划分采用 7:2:1 的固定比例：Train 用于参数学习，Test
 用于选超参数与早停，Val 仅用于最终打分与汇总。在这一协议下，Test
 不参与对外报告，从而尽量避免信息泄漏；Val
