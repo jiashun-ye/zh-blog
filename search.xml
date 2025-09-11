@@ -601,9 +601,8 @@ Distribution Learning）训练 CPNN，最终按既定协议在 Val
 <p>数据来自 MegaAge-Asian（<a
 href="https://aistudio.baidu.com/datasetdetail/45324">AI Studio
 数据集</a>）。这个数据集面向亚洲人脸年龄估计，提供了离散年龄标签及其对应的年龄后验分布文件，适合做分布级监督。我们只使用其中与年龄估计相关的部分，不涉及性别等其他属性；数据下载后按官方组织方式读取，再结合后续特征抽取与划分流程进行清洗与重排。</p>
-<p><img src="斯分布和三角分布.png" /></p>
-<p><img src="a.jpg" /></p>
-<p><img src="MegaAge_Asian.png" /></p>
+<p><img
+src="C:\Users\JiashunYe\my-zh-hexo-blog\source_posts\代码复现-朴素标签分布学习实践\MegaAge_Asian.png" /></p>
 <p>特征提取器使用 MiVOLO（<a
 href="https://github.com/WildChlamydia/MiVOLO">GitHub</a>，<a
 href="https://arxiv.org/abs/2307.04616">论文</a>）。MiVOLO
