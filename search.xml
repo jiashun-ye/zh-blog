@@ -1,69 +1,645 @@
 <?xml version="1.0" encoding="utf-8"?>
-<search> 
-  
-  
+<search>
+  <entry>
+    <title>精读解析|从单一标签到标签分布：面部年龄估计的新方法</title>
+    <url>/zh-blog/2025/03/16/%E7%B2%BE%E8%AF%BB%E8%A7%A3%E6%9E%90-%E4%BB%8E%E5%8D%95%E4%B8%80%E6%A0%87%E7%AD%BE%E5%88%B0%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%EF%BC%9A%E9%9D%A2%E9%83%A8%E5%B9%B4%E9%BE%84%E4%BC%B0%E8%AE%A1%E7%9A%84%E6%96%B0%E6%96%B9%E6%B3%95/</url>
+    <content><![CDATA[<p>本文对Xin Geng等人的论文《Facial Age Estimation by Learning from
+Label
+Distributions》（2011）进行了精读，系统梳理其研究框架，并详细推导了其中的关键数学模型。精读过程包括明确标签分布的定义，分析以KL散度为目标的标签分布学习模型，深入推导了基于最大熵模型的条件概率函数及其优化算法IIS-LLD，最后总结了论文的实验设计与结果。</p>
+<span id="more"></span>
+<p><em>论文链接：<a
+href="https://cdn.aaai.org/ojs/7657/7657-13-11187-1-2-20201228.pdf">Facial
+Age Estimation by Learning from Label Distributions</a></em></p>
+<p>面部年龄估计面临数据稀疏性挑战（如高龄段样本不足）。受到年龄变化具有连续性（相邻年龄特征相似）启发，Xin
+Geng提出<em>标签分布学习</em>框架：将单一年龄标签扩展为覆盖邻近年龄的分布，通过共享年龄特征缓解数据不足，显著提升模型泛化能力，尤其是高龄的准确度。</p>
+<h1 id="定义标签分布">定义标签分布</h1>
+<p>标签分布是单标签和多标签的一个拓广，并且标签分布的含义和概率或者模糊分类不同，不过在数学结构上与概率高度相似。标签分布的核心概念是，每个标签都是对样本的正确描述，但描述程度不同，所有标签的组合构成对样本的完整描述。相比传统的单标签学习，这种方法能更好地反映类别之间的相关性，特别适用于年龄估计这样的连续变量任务。</p>
+<p>设<span class="math inline">\(\alpha\)</span>是原始标签，<span
+class="math inline">\(y\)</span>是一般标签，从单标签转换为标签分布需要遵循两个基本原则：</p>
+<ul>
+<li><p>原始标签的描述程度最大，即 <span
+class="math inline">\(P(\alpha)\)</span> 应该是分布中的最大值。</p></li>
+<li><p>距离原始标签越远的标签，其描述程度越低，即 <span
+class="math inline">\(P(y)\)</span> 随 <span class="math inline">\(|y -
+\alpha|\)</span> 的增加而递减。</p></li>
+</ul>
+<p>论文里使用的标签分布有以下两种：</p>
+<p><img src="高斯分布和三角分布.png" /></p>
+<p><u><em>高斯分布（Gaussian
+Distribution）</em></u>，通过指数衰减方式平滑地降低相邻标签的权重，定义如下：
+<span class="math display">\[
+P(y) = \frac{1}{Z} \exp \left(-\frac{(y - \alpha)^2}{2\sigma^2} \right)
+\]</span></p>
+<p>其中，<span class="math inline">\(Z\)</span> 是归一化因子，<span
+class="math inline">\(\sigma\)</span>
+控制分布的扩展范围。高斯分布能够较好地利用相邻标签信息，确保模型对年龄变化的连续性建模。</p>
+<p><u><em>三角分布（Triangle
+Distribution）</em></u>，采用线性递减的方式，仅在一定范围内赋予相邻标签权重：
+<span class="math display">\[
+P(y) = \max \left(0, 1 - \frac{|y - \alpha|}{l} \right)
+\]</span></p>
+<p>其中，<span class="math inline">\(l\)</span>
+决定了分布的跨度。相比高斯分布，三角分布更加局部化，确保远离原始标签的标签不会对模型产生影响。</p>
+<h1 id="标签分布模型与学习方式">标签分布模型与学习方式</h1>
+<p>以下是标签分布学习的建模与优化方法的基本结构：</p>
+<p><img src="训练阶段.png" /></p>
+<p><img src="预测阶段.png" /></p>
+<h2 id="优化目标kl散度">优化目标：KL散度</h2>
+设输入空间为 $ \mathcal{X} = \mathbb{R}^d $，标签空间为 $ \mathcal{Y} = \{ y_1, y_2, \dots, y_c \} $。传统分类任务中，每个样本 $ x_i $ 仅对应一个标签，但在标签分布学习中，每个样本 $ x_i $ 关联一个 标签分布 $ P_i(y) $，表示该样本在不同标签上的分布权重。
+
+目标是学习一个条件概率分布 $ p(y|x; \theta) $，使其尽可能接近 $ P_i(y) $。采用 KL散度 作为衡量准则：
+<p><span class="math display">\[
+\theta^* = \arg\min_{\theta} \sum_i \sum_y P_i(y) \log
+\frac{P_i(y)}{p(y|x_i; \theta)}
+\]</span></p>
+<p>由于 <span class="math inline">\(P_i(y)\)</span>
+在训练样本里是常数，KL 散度最小化等价于 <em>最大化对数似然（MLE）</em>：
+<span class="math display">\[
+\theta^* = \arg\max_{\theta} \sum_i \sum_y P_i(y) \log p(y|x_i; \theta)
+\]</span>
+标签分布学习框架与传统问题在以KL散度为目标函数的情况下具有密切联系：</p>
+<ul>
+<li>在单标签分类任务中，每个样本仅有一个确定的标签，即 $ P_i(y) = \delta(y, y_i) $。目标函数退化为经典的最大似然估计目标：</li>
+</ul>
+<p><span class="math display">\[
+\theta^* = \arg\max_{\theta} \sum_i \log p(y_i | x_i; \theta)
+\]</span></p>
+<ul>
+<li>在多标签分类任务中，每个样本 $ x_i $ 关联一个标签集合 $ Y_i $，假设
+$ P_i(y) $
+均匀分布在多个标签上。目标函数变为熵权重标签分配方法，将多标签样本转化为带权重的单标签样本，并优化最大似然目标：</li>
+</ul>
+<p><span class="math display">\[
+\theta^* = \arg\max_{\theta} \sum_i \frac{1}{|Y_i|} \sum_{y \in Y_i}
+\log p(y | x_i; \theta)
+\]</span></p>
+<h2 id="条件概率形式最大熵模型">条件概率形式：最大熵模型</h2>
+<h3 id="最大熵模型">最大熵模型</h3>
+<p>确定了条件概率函数的形式，才能进行参数的调整实现KL散度的优化。论文采用了最大熵模型得到条件概率函数，该模型也是一个优化问题。目标函数是最大化熵，即在符合约束条件的前提下，使得条件分布 $ p(y|x; \theta) $ 尽可能均匀，包含最多的信息，避免引入额外的假设，从而提高模型的泛化能力。
+$$
+\max_{p(y|x; \theta)}  \sum_{x,y} \tilde{p}(x) p(y|x; \theta) \log p(y|x; \theta)
+$$
+
+其中，$p(y|x; \theta)$为给定输入 $ x $ 的条件概率分布，是需要优化的目标分布； $ \tilde{p}(x,y) $是经验联合分布，由训练数据估计得到；  $ \tilde{p}(x) $是经验边际分布，即 $ \tilde{p}(x) = \sum_y \tilde{p}(x,y) $； $ f_k(x,y) $为特征函数，表示输入 $ x $ 和类别 $ y $ 之间的某种特征； $ \theta $为模型参数，决定了条件概率分布的形状。</p>
+<p>最大熵模型有两个约束条件：</p>
+<ul>
+<li>特征函数的期望值约束，要求模型的特征函数期望值与训练数据保持一致：</li>
+</ul>
+<p><span class="math display">\[
+\sum_{x,y} \tilde{p}(x,y) f_k(x,y) = \sum_{x,y} \tilde{p}(x) p(y|x;
+\theta) f_k(x,y), \quad \forall k.
+\]</span></p>
+<ul>
+<li>概率归一化约束，确保 $ p(y|x; ) $ 是一个合法的概率分布：</li>
+</ul>
+<p><span class="math display">\[
+\sum_y p(y|x; \theta) = 1, \quad \forall x.
+\]</span>
+<em>特征函数会让人觉得很突兀，可以这样理解：如果特征函数表示图片中面部的皱纹数量，那么训练出的模型在期望意义上会在皱纹数量上尽可能贴合训练样本。论文里特征函数由特征提取器提供，它是一个黑盒，虽然无法直接解释其数值，但一个优秀的特征提取器会输出与目标（如年龄预测）高度相关的特征，因此这个约束可以让模型在这些预测相关的特征上进行最优拟合。</em></p>
+<p>这个优化问题有一个解析解： <span class="math display">\[
+p(y|x; \theta) = \frac{1}{Z} \exp\left( \sum_k \theta_k f_k(x,y)
+\right),
+\]</span></p>
+<p>其中</p>
+<p><span class="math display">\[
+Z = \sum_y \exp\left( \sum_k \theta_k f_k(x,y) \right).
+\]</span></p>
+<h3 id="解析解理论推导">解析解理论推导</h3>
+<p>最大熵模型的优化目标是最大化条件熵：</p>
+<p><span class="math display">\[
+H(P) = - \sum_{x,y} \tilde{P}(x) P(y|x) \log P(y|x)
+\]</span></p>
+<p>同时满足以下约束条件：</p>
+<ul>
+<li>经验期望约束：</li>
+</ul>
+<p><span class="math display">\[
+E_P(f_i) = E_{\tilde{P}}(f_i), \quad i=1,2,\dots,n
+\]</span></p>
+<ul>
+<li>概率归一化条件：</li>
+</ul>
+<p><span class="math display">\[
+\sum_y P(y|x) = 1
+\]</span></p>
+<p>为此，引入拉格朗日乘子 <span class="math inline">\(w_0, w_1, \dots,
+w_n\)</span>，构造拉格朗日函数：</p>
+<p><span class="math display">\[
+L(P,w) = -H(P) + w_0 \left( 1 - \sum_y P(y|x) \right) + \sum_{i=1}^{n}
+w_i \left( E_{\tilde{P}}(f_i) - E_P(f_i) \right)
+\]</span></p>
+<p>将其展开为具体形式：</p>
+<p><span class="math display">\[
+L(P, w) = \sum_{x,y} \tilde{P}(x) P(y|x) \log P(y|x) + w_0 \left( 1 -
+\sum_y P(y|x) \right)
+\]</span></p>
+<p><span class="math display">\[
++ \sum_{i=1}^{n} w_i \left( \sum_{x,y} \tilde{P}(x,y) f_i(x,y) -
+\sum_{x,y} \tilde{P}(x) P(y|x) f_i(x,y) \right)
+\]</span></p>
+<p>对 <span class="math inline">\(P(y|x)\)</span> 求偏导数：</p>
+<p><span class="math display">\[
+\frac{\partial L(P,w)}{\partial P(y|x)} = \tilde{P}(x) \left[ \log
+P(y|x) + 1 \right] - \tilde{P}(x) \sum_{i=1}^{n} w_i f_i(x,y) - w_0
+\]</span></p>
+<p>令偏导数为零：</p>
+<p><span class="math display">\[
+\log P(y|x) + 1 = \sum_{i=1}^{n} w_i f_i(x,y) + w_0
+\]</span></p>
+<p>即：</p>
+<p><span class="math display">\[
+P(y|x) = \exp \left( \sum_{i=1}^{n} w_i f_i(x,y) + w_0 - 1 \right)
+\]</span></p>
+<p>由于 <span class="math inline">\(P(y|x)\)</span>
+需要满足归一化条件：</p>
+<p><span class="math display">\[
+\sum_y P(y|x) = 1
+\]</span></p>
+<p>我们将 <span class="math inline">\(P(y|x)\)</span> 归一化：</p>
+<p><span class="math display">\[
+\sum_y \exp \left( \sum_{i=1}^{n} w_i f_i(x,y) + w_0 - 1 \right) = 1
+\]</span></p>
+<p>定义归一化因子：</p>
+<p><span class="math display">\[
+Z(x) = \sum_y \exp \left( \sum_{i=1}^{n} w_i f_i(x,y) \right)
+\]</span></p>
+<p>则：</p>
+<p><span class="math display">\[
+\exp (w_0 - 1) = \frac{1}{Z(x)}
+\]</span></p>
+<p>代入 <span class="math inline">\(P(y|x)\)</span> 的表达式：</p>
+<p><span class="math display">\[
+P(y|x) = \frac{\exp \left( \sum_{i=1}^{n} w_i f_i(x,y) \right)}{Z(x)}
+\]</span></p>
+<p>最终得出最大熵模型的解析解：</p>
+<p><span class="math display">\[
+P(y|x) = \frac{\exp \left( \sum_{i=1}^{n} w_i f_i(x,y) \right)}{Z(x)}
+\]</span></p>
+<p>其中：</p>
+<p><span class="math display">\[
+Z(x) = \sum_y \exp \left( \sum_{i=1}^{n} w_i f_i(x,y) \right)
+\]</span></p>
+<p>这表明最大熵模型具有指数形式，即指数族分布，其中 <span
+class="math inline">\(w_i\)</span> 是待优化的参数。</p>
+<p><em>如果足够细心，你可以发现在推导的过程中，把解析解带入概率归一化条件的约束里定下了参数
+<span
+class="math inline">\(w_0\)</span>，为什么不再代入期望相等的约束条件里定下
+<span class="math inline">\(w_i\)</span>
+呢？这样还能保证满足期望相等吗？可以这样理解：如果没有特征函数期望约束，那么最终的模型在最大熵意义下是一个均匀分布，加入这个约束之后就会使一个指数型的分布函数。期望约束相当于“数据驱动的先验”，它决定了分布的形状，引导模型如何利用数据特征。它是一个“软约束”，定下了分布的形状，强制模型匹配数据的统计特性，允许一定范围的自由调整。</em></p>
+<h2 id="优化算法iis-lld">优化算法：IIS-LLD</h2>
+<h3 id="目标函数">目标函数</h3>
+<p>将得到的指数型条件概率函数代入KL散度式子得到： <span
+class="math display">\[
+T(\theta) = \sum_{i} \sum_{y} P_i(y) \log \left( \frac{1}{Z(x_i)} \exp
+\left( \sum_k \theta_{y,k} g_k(x_i) \right) \right)
+\]</span> 展开对数： <span class="math display">\[
+T(\theta) = \sum_{i} \sum_{y} P_i(y) \sum_k \theta_{y,k} g_k(x_i) -
+\sum_i \sum_{y} P_i(y) \log Z(x_i)
+\]</span></p>
+<p>由于 <span class="math inline">\(Z(x_i)\)</span> 与 <span
+class="math inline">\(y\)</span> 无关，且 <span
+class="math inline">\(P_i(y)\)</span> 对 <span
+class="math inline">\(y\)</span> 求和为 1： <span
+class="math display">\[
+\sum_{y} P_i(y) \log Z(x_i) = \log Z(x_i) \sum_y P_i(y) = \log Z(x_i)
+\]</span> 故 <span class="math display">\[
+T(\theta) = \sum_{i} \sum_{y} P_i(y) \sum_k \theta_{y,k} g_k(x_i) -
+\sum_i \log Z(x_i)
+\]</span> 展开 <span class="math inline">\(Z(x_i)\)</span> ：</p>
+<p><span class="math display">\[
+T(\theta) = \sum_{i} \sum_{y} P_i(y) \sum_k \theta_{y,k} g_k(x_i) -
+\sum_i \log \sum_y \exp \left( \sum_k \theta_{y,k} g_k(x_i) \right)
+\]</span></p>
+<h3 id="目标函数增量下界推导">目标函数增量下界推导</h3>
+<p>我们希望最大化目标函数： <span class="math display">\[
+T(\theta) = \sum_{i,y} P_i(y) \sum_k \theta_{y,k} g_k(x_i) - \sum_i \log
+Z(x_i)
+\]</span> 其中： <span class="math display">\[
+Z(x_i) = \sum_y \exp \left( \sum_k \theta_{y,k} g_k(x_i) \right)
+\]</span></p>
+<p>定义参数更新： <span class="math display">\[
+\theta^{(t+1)} = \theta^{(t)} + \Delta
+\]</span> 其中增量： <span class="math display">\[
+\delta_{y,k} = \theta_{y,k}^{(t+1)} - \theta_{y,k}^{(t)}
+\]</span></p>
+<p>增量后的归一化因子： <span class="math display">\[
+Z^*(x_i) = \sum_y \exp \left( \sum_k (\theta_{y,k} + \delta_{y,k})
+g_k(x_i) \right)
+\]</span></p>
+<p>目标函数增量： <span class="math display">\[
+T(\theta + \Delta) - T(\theta) =
+\sum_{i,y} P_i(y) \sum_k \delta_{y,k} g_k(x_i) - \sum_i \log
+\frac{Z^*(x_i)}{Z(x_i)}
+\]</span></p>
+<p>计算后一项： <span class="math display">\[
+\frac{Z^*(x_i)}{Z(x_i)} = \frac{\sum_y \exp \left( \sum_k (\theta_{y,k}
++ \delta_{y,k}) g_k(x_i) \right)}
+{\sum_y \exp \left( \sum_k \theta_{y,k} g_k(x_i) \right)}
+\]</span></p>
+<p>提取原归一化项： <span class="math display">\[
+\frac{Z^*(x_i)}{Z(x_i)} =
+\sum_y \frac{\exp \left( \sum_k \theta_{y,k} g_k(x_i) \right)}{Z(x_i)}
+\exp \left( \sum_k \delta_{y,k} g_k(x_i) \right)
+\]</span></p>
+<p>由于： <span class="math display">\[
+p(y | x_i; \theta) = \frac{\exp \left( \sum_k \theta_{y,k} g_k(x_i)
+\right)}{Z(x_i)}
+\]</span></p>
+<p>所以： <span class="math display">\[
+\frac{Z^*(x_i)}{Z(x_i)} = \sum_y p(y | x_i; \theta) \exp \left( \sum_k
+\delta_{y,k} g_k(x_i) \right)
+\]</span></p>
+<p>使用对数不等式放缩： <span class="math display">\[
+-\log x \geq 1 - x
+\]</span></p>
+<p>应用到目标函数增量： <span class="math display">\[
+-\sum_i \log \sum_y p(y | x_i; \theta) \exp \left( \sum_k \delta_{y,k}
+g_k(x_i) \right)
+\geq
+\sum_i \left( 1 - \sum_y p(y | x_i; \theta) \exp \left( \sum_k
+\delta_{y,k} g_k(x_i) \right) \right)
+\]</span></p>
+<p>故 <span class="math display">\[
+T(\theta + \Delta) - T(\theta) \geq
+\sum_{i,y} P_i(y) \sum_k \delta_{y,k} g_k(x_i) + n - \sum_i \sum_y p(y |
+x_i; \theta) \exp \left( \sum_k \delta_{y,k} g_k(x_i) \right)
+\]</span></p>
+<p>下面使用 Jensen不等式 继续放缩，</p>
+<p>定义： <span class="math display">\[
+g^\#(x_i) = \sum_k |g_k(x_i)|
+\]</span></p>
+<p>由于指数函数是凸函数，根据 Jensen不等式，令 $ s(g_k(x_i)) $ 为 $
+g_k(x_i) $ 的符号函数： <span class="math display">\[
+\sum_k \frac{|g_k(x_i)|}{g^\#(x_i)} \exp \left( \delta_{y,k} s(g_k(x_i))
+g^\#(x_i) \right)
+\geq
+\exp \left( \sum_k \frac{|g_k(x_i)|}{g^\#(x_i)} \delta_{y,k} g^\#(x_i)
+\right)
+\]</span></p>
+<p>即 <span class="math display">\[
+\sum_k \frac{|g_k(x_i)|}{g^\#(x_i)} \exp \left( \delta_{y,k} s(g_k(x_i))
+g^\#(x_i) \right)
+\geq
+\exp \left( \sum_k \delta_{y,k} |g_k(x_i)| \right)
+\]</span></p>
+<p>调换方向： <span class="math display">\[
+-\exp \left( \sum_k \delta_{y,k} |g_k(x_i)| \right)
+\geq
+-\sum_k \frac{|g_k(x_i)|}{g^\#(x_i)} \exp \left( \delta_{y,k}
+s(g_k(x_i)) g^\#(x_i) \right)
+\]</span></p>
+<p>代入前面的下界： <span class="math display">\[
+T(\theta + \Delta) - T(\theta) \geq
+\sum_{i,y} P_i(y) \sum_k \delta_{y,k} g_k(x_i) + n - \sum_{i, y} p(y |
+x_i; \theta)\sum_k \frac{|g_k(x_i)|}{g^\#(x_i)} \exp \left( \delta_{y,k}
+s(g_k(x_i)) g^\#(x_i) \right)
+\]</span></p>
+<p>我们将右侧表达式定义为： <span class="math display">\[
+\mathcal{A}(\Delta | \theta) =
+\sum_{i,y} P_i(y) \sum_k \delta_{y,k} g_k(x_i) + n - \sum_{i, y} p(y |
+x_i; \theta)\sum_k \frac{|g_k(x_i)|}{g^\#(x_i)} \exp \left( \delta_{y,k}
+s(g_k(x_i)) g^\#(x_i) \right)
+\]</span></p>
+<p>即 <span class="math display">\[
+T(\theta + \Delta) - T(\theta) \geq \mathcal{A}(\Delta | \theta)
+\]</span></p>
+<h3 id="iis-lld算法">IIS-LLD算法</h3>
+<p><span class="math inline">\(T(\theta)\)</span> 通过 Jensen 不等式
+的放缩，使得<span class="math inline">\(\mathcal{A}(\Delta |
+\theta)\)</span> 各个维度变得相互独立，可以逐个维度独立优化。</p>
+<p>优化过程即对 <span class="math inline">\(\mathcal{A}(\Delta |
+\theta)\)</span> 求导，并令梯度为 0，得到每个维度的增量：</p>
+<p><span class="math display">\[
+\frac{\partial \mathcal{A}(\Delta | \theta)}{\partial \delta_{y,k}} =
+\sum_{i} P_i(y) g_k(x_i) - \sum_{i} p(y | x_i; \theta) g_k(x_i)
+\exp(\delta_{y,k} s(g_k(x_i)) g^\#(x_i)) = 0.
+\]</span></p>
+<p>此方程可以通过数值方法（如 Gauss-Newton 方法）逐个求解每个维度的增量
+<span
+class="math inline">\(\delta_{y,k}\)</span>，最终完成迭代更新。算法流程如下：</p>
+<p><img src="IIS-LLD算法流程图.png" /></p>
+<p><em>经典的IIS算法要求特征函数非负，论文里为了保证标签分布模型的灵活性，取消了这一限制，所以命名为IIS-LLD算法。从算法上来看也能得到最后的解，不过从数值方法的角度来看，这会带来不稳定的风险。</em></p>
+<h1 id="实验和结果分析">实验和结果分析</h1>
+<p>实验使用了 <em>FG-NET Aging Database</em>，该数据集包含1002
+张面部图像，来自82 名受试者，年龄范围在0-69
+岁之间。每名受试者的照片数量在6-18
+张之间，数据集中包含不同的光照、表情和姿态变化。由于年龄较大的样本较少，研究者采用了
+<em>Leave-One-Person-Out（LOPO）交叉验证</em>，即每次选取一名受试者的所有照片作为测试集，其余受试者的照片作为训练集，重复82
+轮计算最终结果。实验使用 <em>Mean Absolute Error（MAE）</em>
+作为误差度量，计算预测年龄与真实年龄之间的平均绝对误差。</p>
+<p>特征提取方法基于 <em>外观模型（Appearance
+Model）</em>。该模型首先模型检测人脸关键点，通过
+<em>PCA（主成分分析）</em>
+对关键点坐标进行降维；然后对人脸图像进行标准化，使其符合统一的形状；再对标准化后的灰度图进行PCA
+降维，提取纹理特征；最终形状和纹理特征被结合成一个特征向量。在 PCA
+降维过程中，研究者选择保留95% 的数据变异性，截取了前200个主成分。</p>
+<p>以下是实验中用到的方法和对应的关键参数：</p>
+
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>三线表</title>
+    <style>
+        table {
+            width: 80%;
+            margin: 20px auto;
+            border-collapse: collapse;
+        }
+
+        table caption {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+        }
     
-    <entry>
-      <title>精读解析|端到端的标签分布学习：突破函数形状限制</title>
-      <link href="/zh-blog/2025/09/11/%E7%B2%BE%E8%AF%BB%E8%A7%A3%E6%9E%90-%E7%AB%AF%E5%88%B0%E7%AB%AF%E7%9A%84%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%E5%AD%A6%E4%B9%A0%EF%BC%9A%E7%AA%81%E7%A0%B4%E5%87%BD%E6%95%B0%E5%BD%A2%E7%8A%B6%E9%99%90%E5%88%B6/"/>
-      <url>/zh-blog/2025/09/11/%E7%B2%BE%E8%AF%BB%E8%A7%A3%E6%9E%90-%E7%AB%AF%E5%88%B0%E7%AB%AF%E7%9A%84%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%E5%AD%A6%E4%B9%A0%EF%BC%9A%E7%AA%81%E7%A0%B4%E5%87%BD%E6%95%B0%E5%BD%A2%E7%8A%B6%E9%99%90%E5%88%B6/</url>
-      
-        <content type="html"><![CDATA[<p>本文对 Xin Geng 等人的论文《Facial Age Estimation by Learning fromLabel Distributions》（2013 ）进行了精读。该工作是在 2011年提出的标签分布学习与 IIS-LLD算法基础上的拓展，提出了条件概率神经网络（CPNN），以端到端方式直接建模条件分布，突破了固定函数形状的限制。本文将重点说明CPNN 的建模流程，并总结其在 FG-NET 与 MORPH 数据集上的实验结果。</p><span id="more"></span><p><em>论文链接：<ahref="https://ieeexplore.ieee.org/document/6475129">Facial AgeEstimation by Learning from Label Distributions</a></em></p><p><em>本文前置文章链接：<ahref="https://jiashun-ye.github.io/zh-blog/2025/03/16/%E7%B2%BE%E8%AF%BB%E8%A7%A3%E6%9E%90-%E4%BB%8E%E5%8D%95%E4%B8%80%E6%A0%87%E7%AD%BE%E5%88%B0%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%EF%BC%9A%E9%9D%A2%E9%83%A8%E5%B9%B4%E9%BE%84%E4%BC%B0%E8%AE%A1%E7%9A%84%E6%96%B0%E6%96%B9%E6%B3%95/#more">精读解析|从单一标签到标签分布：面部年龄估计的新方法</a></em></p><p>基于最大熵模型的 IIS-LLD需要预设条件概率分布的指数族形式，这一假设存在局限，容易导致模型错设。为突破这一限制，论文提出条件概率神经网络（CPNN），通过神经网络端到端建模<spanclass="math inline">\(p(y∣x)\)</span>，不依赖特定函数形状假设，并借助标签分布监督实现更灵活、更准确的年龄估计。</p><h1 id="灵活的条件概率建模">灵活的条件概率建模</h1><p>目标是直接学习条件分布 <span class="math inline">\(p(y\midx)\)</span>。设输入特征 <spanclass="math inline">\(x\in\mathbb{R}^q\)</span>，离散年龄集合 <spanclass="math inline">\(\mathcalY=\{y_1,\dots,y_c\}\)</span>，并记训练时给定的标签分布为 <spanclass="math inline">\(D_x(y)\)</span>。与最大熵模型 <spanclass="math inline">\(p(y\mid x;\theta)\propto\exp\!\big(\langle\theta,\phi(x,y)\rangle\big)\)</span>不同，三层感知机直接参数化 <span class="math inline">\(p(y\midx)\)</span>，以提升非线性拟合能力并避免模型错设。这就是CPNN算法。</p><p>直觉上可让网络接收特征 <spanclass="math inline">\(x\in\mathbb{R}^q\)</span> 并一次性输出长度为 <spanclass="math inline">\(c\)</span> 的年龄分布，但这会引入 <spanclass="math inline">\(\mathcal O(H\!\cdot\!c)\)</span> 的末层参数（<spanclass="math inline">\(H\)</span>为隐藏单元数），在样本有限时难以稳健训练。为此，将年龄 <spanclass="math inline">\(y\)</span> 也作为输入，采用共享参数的函数 <spanclass="math display">\[f_\theta(x,y)=\mathrm{MLP}_\theta\!\big([\;x,\\mathrm{enc}(y)\;]\big)\in\mathbb{R},\]</span> 对同一张图像的所有候选年龄 <spanclass="math inline">\(y\in\mathcal Y\)</span> 枚举得到 <spanclass="math inline">\(\{f_\theta(x,y)\}_{y\in\mathcalY}\)</span>，再通过指数归一化获得条件概率 <span class="math display">\[p_\theta(y\midx)=\frac{\exp\!\big(f_\theta(x,y)\big)}{\sum_{y&#39;\in\mathcalY}\exp\!\big(f_\theta(x,y&#39;)\big)}.\]</span> 这种“<span class="math inline">\(y\)</span>作为输入、单输出标量”的设计既保持与 softmax相同的概率归一化形式，又显著降低参数规模，并在相邻年龄间实现自然的参数共享。</p><p>训练目标为分布级交叉熵 <span class="math display">\[\mathcal L(\theta)=-\sum_{y\in\mathcal Y} D_x(y)\,\log p_\theta(y\midx),\qquadp_\theta(y\midx)=\frac{\exp(f_\theta(x,y))}{\sum_{y&#39;}\exp(f_\theta(x,y&#39;))}.\]</span> 其顶层梯度为 <span class="math inline">\(\partial \mathcalL/\partial f_\theta(x,y)=p_\theta(y\midx)-D_x(y)\)</span>。反向传播中，输出层为线性单元，<spanclass="math inline">\(f_\theta(x,y)=\sum_{m=1}^{M_2}\theta_{31m}\,z^{(2)}_m(x,y)\)</span>，其中<span class="math inline">\(z^{(2)}_m=G(I_{2m})\)</span> 为隐藏层第<span class="math inline">\(m\)</span> 个单元的输出，<spanclass="math inline">\(I_{2m}=\sum_{k=0}^{M_1}\theta_{2mk}\,u_k\)</span>为其净输入，<span class="math inline">\(u=[1,x,\mathrm{enc}(y)]\)</span>是含偏置与年龄编码的输入拼接向量，<span class="math inline">\(G\)</span>为 sigmoid，<span class="math inline">\(G&#39;\)</span> 为其导数，<spanclass="math inline">\(\theta_{31m}\)</span> 为隐藏到输出的权重，<spanclass="math inline">\(\theta_{2mk}\)</span> 为输入到隐藏的权重。由此有<span class="math display">\[\frac{\partial \mathcal L}{\partial \theta_{31m}}=\sum_{y\in\mathcal Y}\big(p_\theta(y\midx)-D_x(y)\big)\,z^{(2)}_m(x,y),\qquad\]</span> <span class="math display">\[\frac{\partial \mathcal L}{\partial \theta_{2mk}}=\sum_{y\in\mathcal Y}\big(p_\theta(y\midx)-D_x(y)\big)\,\theta_{31m}\,G&#39;(I_{2m}(x,y))\,u_k(x,y),\]</span> 实践中采用标准 BP 反向传播训练即可。</p><h1 id="实验和结果分析">实验和结果分析</h1><p>FG-NET 采用 LOPO 验证与 MAE 评估，图像来自 82 人共 1002 张，年龄0–69；MORPH 使用 10 折交叉验证并以 MAE±std 汇报结果，年龄16–77。两套数据的 200 维特征来自不同管线：FG-NET使用外观模型（Appearance Model）抽取形状与灰度联合特征并取前 200个模型参数；MORPH 使用 BIF（Bio-Inspired Features），随后以MFA（Marginal Fisher Analysis）将特征降至 200维，从而在相同维度上对比算法表现。</p><p>由于本文重点关注 CPNN，仅报告其表现。网络为三层感知机，隐藏层 400个单元，将年龄 y 与图像特征拼接为输入，经 softmax归一化得到条件分布并以分布级交叉熵训练；标签分布做Gaussian、Triangle、Single 三种对照以衡量相邻年龄的“软监督”。与 IIS-LLD的总体结论是：在相同特征与协议下，CPNN的平均误差更低，但更依赖数据、方差略高，而 IIS-LLD因最大熵形状先验与逐维增量优化更稳更快；在训练数据递减实验中 IIS-LLD曲线更平滑。只看 CPNN 的消融，Gaussian 的 σ 与 Triangle 的底边 l过窄（近似 Single）会削弱相邻监督、过宽会稀释主标签，适中最好（经验上σ≈2、l≈6）；相对于低龄样本充足的年龄段，以及相对于 Single 与 AGES等基线方法，在 60–69 岁等高龄稀疏段的相对改进幅度更大。</p><!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><style>  table { width: 76%; margin: 14px auto; border-collapse: collapse; font-size: 0.94em; }  thead th { border-top: 3px solid #000; border-bottom: 2px solid #000; padding: 4px 6px; text-align: center; background: #f6f6f6; }  tbody td { padding: 2px 6px; text-align: left; border-bottom: 1px solid #ddd; }  tbody tr:last-child td { border-bottom: 3px solid #000; }  caption { font-size: 1.12em; margin: 4px 0 2px; }</style></head><body>  <table>    <caption>CPNN 与 IIS-LLD 优缺点对照</caption>    <thead>      <tr>        <th>方法</th>        <th>优点</th>        <th>局限</th>      </tr>    </thead>    <tbody>      <tr>        <td>IIS-LLD</td>        <td>最大熵形状先验带来稳定性；参数增量逐维优化，收敛更快；训练数据递减时曲线更平滑</td>        <td>预设 $p(y|x)$ 形状可能与任务不匹配；各标签分别学习参数，跨标签相关性利用不足</td>      </tr>      <tr>        <td>CPNN</td>        <td>不设 $p(y|x)$ 形状假设，表达更灵活；所有标签共享参数，可显式利用相邻年龄相关性，平均误差更低</td>        <td>更依赖数据、方差略高；端到端训练更慢，需用正则与适中分布尺度抑制过拟合</td>      </tr>    </tbody>  </table></body></html><p>从成因上看，CPNN 直接建模 <span class="math inline">\(p(y|x)\)</span>并让所有标签共享参数，能把“相邻年龄相似”的结构以软监督方式注入网络，只要分布尺度设置得当，就能在数据较充足或特征表达较强时取得更低的MAE；对应地，自由度更高也让它对数据规模更敏感、方差略高。IIS-LLD 把<span class="math inline">\(p(y|x)\)</span>固定为最大熵的指数族形式，并通过逐维增量求解下界，参数更新更可控、更省算力，因而在样本有限、需要稳健与效率的场景往往更合适；但这种形状约束限制了对跨标签相关性的吸收，导致在大样本或强特征设置下平均误差通常不及CPNN。实际应用可据此取舍：若侧重极限精度且资源允许，优先 CPNN并配合合适的 <span class="math inline">\(σ\)</span>与正则；若侧重训练/推理效率或数据规模受限，优先 IIS-LLD。</p>]]></content>
-      
-      
+        table thead > tr > th {
+            border-top: 3px solid #000;
+            border-bottom: 2px solid #000;
+            padding: 4px;
+            text-align: center;
+            background-color: #f4f4f4;
+        }
+    
+        table tbody > tr > td {
+            padding: 2px;
+            text-align: center;
+            border-bottom: 1px solid #ddd;
+        }
+    
+        table tbody > tr:last-child {
+            border-bottom: 3px solid #000;
+        }
+    
+        table td:last-child {
+            border-right: none;
+        }
+    
+        table {
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <table>
+        <thead>
+            <tr>
+                <th>方法</th>
+                <th>关键参数</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td>IIS-LLD (Gaussian)</td><td>高斯分布，标准差 \( \sigma = 1 \)</td></tr>
+            <tr><td>IIS-LLD (Triangle)</td><td>三角分布，底边长度 \( l = 6 \)</td></tr>
+            <tr><td>IIS-LLD (Single)</td><td>传统单标签，仅用真实年龄</td></tr>
+            <tr><td>AGES</td><td>老化模式子空间维度 = 20</td></tr>
+            <tr><td>WAS</td><td>不需要设置参数</td></tr>
+            <tr><td>AAS</td><td>误差阈值 = 3，年龄段 = (0-9, 10-19, 20-39, 40-69)</td></tr>
+            <tr><td>KNN</td><td>邻近样本数 \( K = 30 \)</td></tr>
+            <tr><td>BP (神经网络)</td><td>隐藏层神经元 = 100</td></tr>
+            <tr><td>C4.5 (决策树)</td><td>使用 J4.8 版本，默认参数</td></tr>
+            <tr><td>SVM</td><td>核函数：RBF，核宽度 = 1</td></tr>
+            <tr><td>HumanA (灰度图像)</td><td>仅展示去除背景的灰度脸部图像</td></tr>
+            <tr><td>HumanB (彩色图像)</td><td>展示完整的彩色图像，包括头发、服饰、背景等</td></tr>
+        </tbody>
+    </table>
+</body>
+</html>
+
+
+<p>实验结果如下所示，表现优于HumanA使用紫色柱形，优于HumanB加上竖直虚线：</p>
+<p><img src="Age_Estimation_Results.png" /></p>
+<p><em>从图中可以看出来，即使没有使用标签分布，IIS-LLD算法表现已经十分优秀，这得益于最大熵模型的良好性质，标签分布达到了锦上添花的效果，使得算法性能超过HumanB。高斯分布覆盖了所有年龄，而三角分布只覆盖了临近的年龄，单标签只覆盖本身的年龄，它们的表现优度依次递减。</em></p>
+<p>论文还对两种标签分布的参数<span
+class="math inline">\(\sigma\)</span>、<span
+class="math inline">\(l\)</span>进行了调整，测试对应的MAE，结果如下：</p>
+<p><img src="deviation.png" /></p>
+<p><em>参数越大，意味着分布约分散。两个分布的参数为0时，都退化为单标签。在临近标签对真实标签做贡献但又不至于“喧宾夺主”间需要保持平衡，才能达到最好的效果。</em></p>
+<p>接下来是对三种IIS-LLD算法和baseline中表现最好的AGES模型在各个年龄段内的MAE做可视化，n表示该年龄段内的样本数量。</p>
+<p><img src="MAE_in_Different_Age_Ranges.png" /></p>
+<p><em>在数据丰富低年龄段内，IIS-LLD模型稍逊于专门做面部年龄估计的AGES模型；而在数据稀疏的高年龄段内IIS-LLD模型明显优于AGES模型。这验证了论文用标签分布弥补数据不足缺陷的想法。</em></p>
+<p>作者最后给出了标签分布存在应用价值的三个场景，帮助处理标签不确定性和数据稀缺问题：实例初始标签即为类分布；类之间存在强相关性；不同来源的标签存在争议。</p>
+]]></content>
       <categories>
-          
-          <category> 论文学习 </category>
-          
-          <category> 精读解析 </category>
-          
+        <category>论文学习</category>
+        <category>精读解析</category>
       </categories>
-      
-      
-        <tags>
-            
-            <tag> 人工智能 </tag>
-            
-            <tag> 机器学习 </tag>
-            
-            <tag> 标签分布学习 </tag>
-            
-        </tags>
-      
-    </entry>
-    
-    
-    
-    <entry>
-      <title>精读解析|从单一标签到标签分布：面部年龄估计的新方法</title>
-      <link href="/zh-blog/2025/03/16/%E7%B2%BE%E8%AF%BB%E8%A7%A3%E6%9E%90-%E4%BB%8E%E5%8D%95%E4%B8%80%E6%A0%87%E7%AD%BE%E5%88%B0%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%EF%BC%9A%E9%9D%A2%E9%83%A8%E5%B9%B4%E9%BE%84%E4%BC%B0%E8%AE%A1%E7%9A%84%E6%96%B0%E6%96%B9%E6%B3%95/"/>
-      <url>/zh-blog/2025/03/16/%E7%B2%BE%E8%AF%BB%E8%A7%A3%E6%9E%90-%E4%BB%8E%E5%8D%95%E4%B8%80%E6%A0%87%E7%AD%BE%E5%88%B0%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%EF%BC%9A%E9%9D%A2%E9%83%A8%E5%B9%B4%E9%BE%84%E4%BC%B0%E8%AE%A1%E7%9A%84%E6%96%B0%E6%96%B9%E6%B3%95/</url>
-      
-        <content type="html"><![CDATA[<p>本文对Xin Geng等人的论文《Facial Age Estimation by Learning fromLabelDistributions》（2011）进行了精读，系统梳理其研究框架，并详细推导了其中的关键数学模型。精读过程包括明确标签分布的定义，分析以KL散度为目标的标签分布学习模型，深入推导了基于最大熵模型的条件概率函数及其优化算法IIS-LLD，最后总结了论文的实验设计与结果。</p><span id="more"></span><p><em>论文链接：<ahref="https://cdn.aaai.org/ojs/7657/7657-13-11187-1-2-20201228.pdf">FacialAge Estimation by Learning from Label Distributions</a></em></p><p>面部年龄估计面临数据稀疏性挑战（如高龄段样本不足）。受到年龄变化具有连续性（相邻年龄特征相似）启发，XinGeng提出<em>标签分布学习</em>框架：将单一年龄标签扩展为覆盖邻近年龄的分布，通过共享年龄特征缓解数据不足，显著提升模型泛化能力，尤其是高龄的准确度。</p><h1 id="定义标签分布">定义标签分布</h1><p>标签分布是单标签和多标签的一个拓广，并且标签分布的含义和概率或者模糊分类不同，不过在数学结构上与概率高度相似。标签分布的核心概念是，每个标签都是对样本的正确描述，但描述程度不同，所有标签的组合构成对样本的完整描述。相比传统的单标签学习，这种方法能更好地反映类别之间的相关性，特别适用于年龄估计这样的连续变量任务。</p><p>设<span class="math inline">\(\alpha\)</span>是原始标签，<spanclass="math inline">\(y\)</span>是一般标签，从单标签转换为标签分布需要遵循两个基本原则：</p><ul><li><p>原始标签的描述程度最大，即 <spanclass="math inline">\(P(\alpha)\)</span> 应该是分布中的最大值。</p></li><li><p>距离原始标签越远的标签，其描述程度越低，即 <spanclass="math inline">\(P(y)\)</span> 随 <span class="math inline">\(|y -\alpha|\)</span> 的增加而递减。</p></li></ul><p>论文里使用的标签分布有以下两种：</p><p><img src="高斯分布和三角分布.png" /></p><p><u><em>高斯分布（GaussianDistribution）</em></u>，通过指数衰减方式平滑地降低相邻标签的权重，定义如下：<span class="math display">\[P(y) = \frac{1}{Z} \exp \left(-\frac{(y - \alpha)^2}{2\sigma^2} \right)\]</span></p><p>其中，<span class="math inline">\(Z\)</span> 是归一化因子，<spanclass="math inline">\(\sigma\)</span>控制分布的扩展范围。高斯分布能够较好地利用相邻标签信息，确保模型对年龄变化的连续性建模。</p><p><u><em>三角分布（TriangleDistribution）</em></u>，采用线性递减的方式，仅在一定范围内赋予相邻标签权重：<span class="math display">\[P(y) = \max \left(0, 1 - \frac{|y - \alpha|}{l} \right)\]</span></p><p>其中，<span class="math inline">\(l\)</span>决定了分布的跨度。相比高斯分布，三角分布更加局部化，确保远离原始标签的标签不会对模型产生影响。</p><h1 id="标签分布模型与学习方式">标签分布模型与学习方式</h1><p>以下是标签分布学习的建模与优化方法的基本结构：</p><p><img src="训练阶段.png" /></p><p><img src="预测阶段.png" /></p><h2 id="优化目标kl散度">优化目标：KL散度</h2>设输入空间为 $ \mathcal{X} = \mathbb{R}^d $，标签空间为 $ \mathcal{Y} = \{ y_1, y_2, \dots, y_c \} $。传统分类任务中，每个样本 $ x_i $ 仅对应一个标签，但在标签分布学习中，每个样本 $ x_i $ 关联一个 标签分布 $ P_i(y) $，表示该样本在不同标签上的分布权重。目标是学习一个条件概率分布 $ p(y|x; \theta) $，使其尽可能接近 $ P_i(y) $。采用 KL散度 作为衡量准则：<p><span class="math display">\[\theta^* = \arg\min_{\theta} \sum_i \sum_y P_i(y) \log\frac{P_i(y)}{p(y|x_i; \theta)}\]</span></p><p>由于 <span class="math inline">\(P_i(y)\)</span>在训练样本里是常数，KL 散度最小化等价于 <em>最大化对数似然（MLE）</em>：<span class="math display">\[\theta^* = \arg\max_{\theta} \sum_i \sum_y P_i(y) \log p(y|x_i; \theta)\]</span>标签分布学习框架与传统问题在以KL散度为目标函数的情况下具有密切联系：</p><ul><li>在单标签分类任务中，每个样本仅有一个确定的标签，即 $ P_i(y) = \delta(y, y_i) $。目标函数退化为经典的最大似然估计目标：</li></ul><p><span class="math display">\[\theta^* = \arg\max_{\theta} \sum_i \log p(y_i | x_i; \theta)\]</span></p><ul><li>在多标签分类任务中，每个样本 $ x_i $ 关联一个标签集合 $ Y_i $，假设$ P_i(y) $均匀分布在多个标签上。目标函数变为熵权重标签分配方法，将多标签样本转化为带权重的单标签样本，并优化最大似然目标：</li></ul><p><span class="math display">\[\theta^* = \arg\max_{\theta} \sum_i \frac{1}{|Y_i|} \sum_{y \in Y_i}\log p(y | x_i; \theta)\]</span></p><h2 id="条件概率形式最大熵模型">条件概率形式：最大熵模型</h2><h3 id="最大熵模型">最大熵模型</h3><p>确定了条件概率函数的形式，才能进行参数的调整实现KL散度的优化。论文采用了最大熵模型得到条件概率函数，该模型也是一个优化问题。目标函数是最大化熵，即在符合约束条件的前提下，使得条件分布 $ p(y|x; \theta) $ 尽可能均匀，包含最多的信息，避免引入额外的假设，从而提高模型的泛化能力。$$\max_{p(y|x; \theta)}  \sum_{x,y} \tilde{p}(x) p(y|x; \theta) \log p(y|x; \theta)$$其中，$p(y|x; \theta)$为给定输入 $ x $ 的条件概率分布，是需要优化的目标分布； $ \tilde{p}(x,y) $是经验联合分布，由训练数据估计得到；  $ \tilde{p}(x) $是经验边际分布，即 $ \tilde{p}(x) = \sum_y \tilde{p}(x,y) $； $ f_k(x,y) $为特征函数，表示输入 $ x $ 和类别 $ y $ 之间的某种特征； $ \theta $为模型参数，决定了条件概率分布的形状。</p><p>最大熵模型有两个约束条件：</p><ul><li>特征函数的期望值约束，要求模型的特征函数期望值与训练数据保持一致：</li></ul><p><span class="math display">\[\sum_{x,y} \tilde{p}(x,y) f_k(x,y) = \sum_{x,y} \tilde{p}(x) p(y|x;\theta) f_k(x,y), \quad \forall k.\]</span></p><ul><li>概率归一化约束，确保 $ p(y|x; ) $ 是一个合法的概率分布：</li></ul><p><span class="math display">\[\sum_y p(y|x; \theta) = 1, \quad \forall x.\]</span><em>特征函数会让人觉得很突兀，可以这样理解：如果特征函数表示图片中面部的皱纹数量，那么训练出的模型在期望意义上会在皱纹数量上尽可能贴合训练样本。论文里特征函数由特征提取器提供，它是一个黑盒，虽然无法直接解释其数值，但一个优秀的特征提取器会输出与目标（如年龄预测）高度相关的特征，因此这个约束可以让模型在这些预测相关的特征上进行最优拟合。</em></p><p>这个优化问题有一个解析解： <span class="math display">\[p(y|x; \theta) = \frac{1}{Z} \exp\left( \sum_k \theta_k f_k(x,y)\right),\]</span></p><p>其中</p><p><span class="math display">\[Z = \sum_y \exp\left( \sum_k \theta_k f_k(x,y) \right).\]</span></p><h3 id="解析解理论推导">解析解理论推导</h3><p>最大熵模型的优化目标是最大化条件熵：</p><p><span class="math display">\[H(P) = - \sum_{x,y} \tilde{P}(x) P(y|x) \log P(y|x)\]</span></p><p>同时满足以下约束条件：</p><ul><li>经验期望约束：</li></ul><p><span class="math display">\[E_P(f_i) = E_{\tilde{P}}(f_i), \quad i=1,2,\dots,n\]</span></p><ul><li>概率归一化条件：</li></ul><p><span class="math display">\[\sum_y P(y|x) = 1\]</span></p><p>为此，引入拉格朗日乘子 <span class="math inline">\(w_0, w_1, \dots,w_n\)</span>，构造拉格朗日函数：</p><p><span class="math display">\[L(P,w) = -H(P) + w_0 \left( 1 - \sum_y P(y|x) \right) + \sum_{i=1}^{n}w_i \left( E_{\tilde{P}}(f_i) - E_P(f_i) \right)\]</span></p><p>将其展开为具体形式：</p><p><span class="math display">\[L(P, w) = \sum_{x,y} \tilde{P}(x) P(y|x) \log P(y|x) + w_0 \left( 1 -\sum_y P(y|x) \right)\]</span></p><p><span class="math display">\[+ \sum_{i=1}^{n} w_i \left( \sum_{x,y} \tilde{P}(x,y) f_i(x,y) -\sum_{x,y} \tilde{P}(x) P(y|x) f_i(x,y) \right)\]</span></p><p>对 <span class="math inline">\(P(y|x)\)</span> 求偏导数：</p><p><span class="math display">\[\frac{\partial L(P,w)}{\partial P(y|x)} = \tilde{P}(x) \left[ \logP(y|x) + 1 \right] - \tilde{P}(x) \sum_{i=1}^{n} w_i f_i(x,y) - w_0\]</span></p><p>令偏导数为零：</p><p><span class="math display">\[\log P(y|x) + 1 = \sum_{i=1}^{n} w_i f_i(x,y) + w_0\]</span></p><p>即：</p><p><span class="math display">\[P(y|x) = \exp \left( \sum_{i=1}^{n} w_i f_i(x,y) + w_0 - 1 \right)\]</span></p><p>由于 <span class="math inline">\(P(y|x)\)</span>需要满足归一化条件：</p><p><span class="math display">\[\sum_y P(y|x) = 1\]</span></p><p>我们将 <span class="math inline">\(P(y|x)\)</span> 归一化：</p><p><span class="math display">\[\sum_y \exp \left( \sum_{i=1}^{n} w_i f_i(x,y) + w_0 - 1 \right) = 1\]</span></p><p>定义归一化因子：</p><p><span class="math display">\[Z(x) = \sum_y \exp \left( \sum_{i=1}^{n} w_i f_i(x,y) \right)\]</span></p><p>则：</p><p><span class="math display">\[\exp (w_0 - 1) = \frac{1}{Z(x)}\]</span></p><p>代入 <span class="math inline">\(P(y|x)\)</span> 的表达式：</p><p><span class="math display">\[P(y|x) = \frac{\exp \left( \sum_{i=1}^{n} w_i f_i(x,y) \right)}{Z(x)}\]</span></p><p>最终得出最大熵模型的解析解：</p><p><span class="math display">\[P(y|x) = \frac{\exp \left( \sum_{i=1}^{n} w_i f_i(x,y) \right)}{Z(x)}\]</span></p><p>其中：</p><p><span class="math display">\[Z(x) = \sum_y \exp \left( \sum_{i=1}^{n} w_i f_i(x,y) \right)\]</span></p><p>这表明最大熵模型具有指数形式，即指数族分布，其中 <spanclass="math inline">\(w_i\)</span> 是待优化的参数。</p><p><em>如果足够细心，你可以发现在推导的过程中，把解析解带入概率归一化条件的约束里定下了参数<spanclass="math inline">\(w_0\)</span>，为什么不再代入期望相等的约束条件里定下<span class="math inline">\(w_i\)</span>呢？这样还能保证满足期望相等吗？可以这样理解：如果没有特征函数期望约束，那么最终的模型在最大熵意义下是一个均匀分布，加入这个约束之后就会使一个指数型的分布函数。期望约束相当于“数据驱动的先验”，它决定了分布的形状，引导模型如何利用数据特征。它是一个“软约束”，定下了分布的形状，强制模型匹配数据的统计特性，允许一定范围的自由调整。</em></p><h2 id="优化算法iis-lld">优化算法：IIS-LLD</h2><h3 id="目标函数">目标函数</h3><p>将得到的指数型条件概率函数代入KL散度式子得到： <spanclass="math display">\[T(\theta) = \sum_{i} \sum_{y} P_i(y) \log \left( \frac{1}{Z(x_i)} \exp\left( \sum_k \theta_{y,k} g_k(x_i) \right) \right)\]</span> 展开对数： <span class="math display">\[T(\theta) = \sum_{i} \sum_{y} P_i(y) \sum_k \theta_{y,k} g_k(x_i) -\sum_i \sum_{y} P_i(y) \log Z(x_i)\]</span></p><p>由于 <span class="math inline">\(Z(x_i)\)</span> 与 <spanclass="math inline">\(y\)</span> 无关，且 <spanclass="math inline">\(P_i(y)\)</span> 对 <spanclass="math inline">\(y\)</span> 求和为 1： <spanclass="math display">\[\sum_{y} P_i(y) \log Z(x_i) = \log Z(x_i) \sum_y P_i(y) = \log Z(x_i)\]</span> 故 <span class="math display">\[T(\theta) = \sum_{i} \sum_{y} P_i(y) \sum_k \theta_{y,k} g_k(x_i) -\sum_i \log Z(x_i)\]</span> 展开 <span class="math inline">\(Z(x_i)\)</span> ：</p><p><span class="math display">\[T(\theta) = \sum_{i} \sum_{y} P_i(y) \sum_k \theta_{y,k} g_k(x_i) -\sum_i \log \sum_y \exp \left( \sum_k \theta_{y,k} g_k(x_i) \right)\]</span></p><h3 id="目标函数增量下界推导">目标函数增量下界推导</h3><p>我们希望最大化目标函数： <span class="math display">\[T(\theta) = \sum_{i,y} P_i(y) \sum_k \theta_{y,k} g_k(x_i) - \sum_i \logZ(x_i)\]</span> 其中： <span class="math display">\[Z(x_i) = \sum_y \exp \left( \sum_k \theta_{y,k} g_k(x_i) \right)\]</span></p><p>定义参数更新： <span class="math display">\[\theta^{(t+1)} = \theta^{(t)} + \Delta\]</span> 其中增量： <span class="math display">\[\delta_{y,k} = \theta_{y,k}^{(t+1)} - \theta_{y,k}^{(t)}\]</span></p><p>增量后的归一化因子： <span class="math display">\[Z^*(x_i) = \sum_y \exp \left( \sum_k (\theta_{y,k} + \delta_{y,k})g_k(x_i) \right)\]</span></p><p>目标函数增量： <span class="math display">\[T(\theta + \Delta) - T(\theta) =\sum_{i,y} P_i(y) \sum_k \delta_{y,k} g_k(x_i) - \sum_i \log\frac{Z^*(x_i)}{Z(x_i)}\]</span></p><p>计算后一项： <span class="math display">\[\frac{Z^*(x_i)}{Z(x_i)} = \frac{\sum_y \exp \left( \sum_k (\theta_{y,k}+ \delta_{y,k}) g_k(x_i) \right)}{\sum_y \exp \left( \sum_k \theta_{y,k} g_k(x_i) \right)}\]</span></p><p>提取原归一化项： <span class="math display">\[\frac{Z^*(x_i)}{Z(x_i)} =\sum_y \frac{\exp \left( \sum_k \theta_{y,k} g_k(x_i) \right)}{Z(x_i)}\exp \left( \sum_k \delta_{y,k} g_k(x_i) \right)\]</span></p><p>由于： <span class="math display">\[p(y | x_i; \theta) = \frac{\exp \left( \sum_k \theta_{y,k} g_k(x_i)\right)}{Z(x_i)}\]</span></p><p>所以： <span class="math display">\[\frac{Z^*(x_i)}{Z(x_i)} = \sum_y p(y | x_i; \theta) \exp \left( \sum_k\delta_{y,k} g_k(x_i) \right)\]</span></p><p>使用对数不等式放缩： <span class="math display">\[-\log x \geq 1 - x\]</span></p><p>应用到目标函数增量： <span class="math display">\[-\sum_i \log \sum_y p(y | x_i; \theta) \exp \left( \sum_k \delta_{y,k}g_k(x_i) \right)\geq\sum_i \left( 1 - \sum_y p(y | x_i; \theta) \exp \left( \sum_k\delta_{y,k} g_k(x_i) \right) \right)\]</span></p><p>故 <span class="math display">\[T(\theta + \Delta) - T(\theta) \geq\sum_{i,y} P_i(y) \sum_k \delta_{y,k} g_k(x_i) + n - \sum_i \sum_y p(y |x_i; \theta) \exp \left( \sum_k \delta_{y,k} g_k(x_i) \right)\]</span></p><p>下面使用 Jensen不等式 继续放缩，</p><p>定义： <span class="math display">\[g^\#(x_i) = \sum_k |g_k(x_i)|\]</span></p><p>由于指数函数是凸函数，根据 Jensen不等式，令 $ s(g_k(x_i)) $ 为 $g_k(x_i) $ 的符号函数： <span class="math display">\[\sum_k \frac{|g_k(x_i)|}{g^\#(x_i)} \exp \left( \delta_{y,k} s(g_k(x_i))g^\#(x_i) \right)\geq\exp \left( \sum_k \frac{|g_k(x_i)|}{g^\#(x_i)} \delta_{y,k} g^\#(x_i)\right)\]</span></p><p>即 <span class="math display">\[\sum_k \frac{|g_k(x_i)|}{g^\#(x_i)} \exp \left( \delta_{y,k} s(g_k(x_i))g^\#(x_i) \right)\geq\exp \left( \sum_k \delta_{y,k} |g_k(x_i)| \right)\]</span></p><p>调换方向： <span class="math display">\[-\exp \left( \sum_k \delta_{y,k} |g_k(x_i)| \right)\geq-\sum_k \frac{|g_k(x_i)|}{g^\#(x_i)} \exp \left( \delta_{y,k}s(g_k(x_i)) g^\#(x_i) \right)\]</span></p><p>代入前面的下界： <span class="math display">\[T(\theta + \Delta) - T(\theta) \geq\sum_{i,y} P_i(y) \sum_k \delta_{y,k} g_k(x_i) + n - \sum_{i, y} p(y |x_i; \theta)\sum_k \frac{|g_k(x_i)|}{g^\#(x_i)} \exp \left( \delta_{y,k}s(g_k(x_i)) g^\#(x_i) \right)\]</span></p><p>我们将右侧表达式定义为： <span class="math display">\[\mathcal{A}(\Delta | \theta) =\sum_{i,y} P_i(y) \sum_k \delta_{y,k} g_k(x_i) + n - \sum_{i, y} p(y |x_i; \theta)\sum_k \frac{|g_k(x_i)|}{g^\#(x_i)} \exp \left( \delta_{y,k}s(g_k(x_i)) g^\#(x_i) \right)\]</span></p><p>即 <span class="math display">\[T(\theta + \Delta) - T(\theta) \geq \mathcal{A}(\Delta | \theta)\]</span></p><h3 id="iis-lld算法">IIS-LLD算法</h3><p><span class="math inline">\(T(\theta)\)</span> 通过 Jensen 不等式的放缩，使得<span class="math inline">\(\mathcal{A}(\Delta |\theta)\)</span> 各个维度变得相互独立，可以逐个维度独立优化。</p><p>优化过程即对 <span class="math inline">\(\mathcal{A}(\Delta |\theta)\)</span> 求导，并令梯度为 0，得到每个维度的增量：</p><p><span class="math display">\[\frac{\partial \mathcal{A}(\Delta | \theta)}{\partial \delta_{y,k}} =\sum_{i} P_i(y) g_k(x_i) - \sum_{i} p(y | x_i; \theta) g_k(x_i)\exp(\delta_{y,k} s(g_k(x_i)) g^\#(x_i)) = 0.\]</span></p><p>此方程可以通过数值方法（如 Gauss-Newton 方法）逐个求解每个维度的增量<spanclass="math inline">\(\delta_{y,k}\)</span>，最终完成迭代更新。算法流程如下：</p><p><img src="IIS-LLD算法流程图.png" /></p><p><em>经典的IIS算法要求特征函数非负，论文里为了保证标签分布模型的灵活性，取消了这一限制，所以命名为IIS-LLD算法。从算法上来看也能得到最后的解，不过从数值方法的角度来看，这会带来不稳定的风险。</em></p><h1 id="实验和结果分析">实验和结果分析</h1><p>实验使用了 <em>FG-NET Aging Database</em>，该数据集包含1002张面部图像，来自82 名受试者，年龄范围在0-69岁之间。每名受试者的照片数量在6-18张之间，数据集中包含不同的光照、表情和姿态变化。由于年龄较大的样本较少，研究者采用了<em>Leave-One-Person-Out（LOPO）交叉验证</em>，即每次选取一名受试者的所有照片作为测试集，其余受试者的照片作为训练集，重复82轮计算最终结果。实验使用 <em>Mean Absolute Error（MAE）</em>作为误差度量，计算预测年龄与真实年龄之间的平均绝对误差。</p><p>特征提取方法基于 <em>外观模型（AppearanceModel）</em>。该模型首先模型检测人脸关键点，通过<em>PCA（主成分分析）</em>对关键点坐标进行降维；然后对人脸图像进行标准化，使其符合统一的形状；再对标准化后的灰度图进行PCA降维，提取纹理特征；最终形状和纹理特征被结合成一个特征向量。在 PCA降维过程中，研究者选择保留95% 的数据变异性，截取了前200个主成分。</p><p>以下是实验中用到的方法和对应的关键参数：</p><!DOCTYPE html><html lang="zh-CN"><head>    <meta charset="UTF-8">    <meta name="viewport" content="width=device-width, initial-scale=1.0">    <title>三线表</title>    <style>        table {            width: 80%;            margin: 20px auto;            border-collapse: collapse;        }        table caption {            font-size: 1.5em;            margin-bottom: 10px;        }            table thead > tr > th {            border-top: 3px solid #000;            border-bottom: 2px solid #000;            padding: 4px;            text-align: center;            background-color: #f4f4f4;        }            table tbody > tr > td {            padding: 2px;            text-align: center;            border-bottom: 1px solid #ddd;        }            table tbody > tr:last-child {            border-bottom: 3px solid #000;        }            table td:last-child {            border-right: none;        }            table {            border: none;        }    </style></head><body>    <table>        <thead>            <tr>                <th>方法</th>                <th>关键参数</th>            </tr>        </thead>        <tbody>            <tr><td>IIS-LLD (Gaussian)</td><td>高斯分布，标准差 \( \sigma = 1 \)</td></tr>            <tr><td>IIS-LLD (Triangle)</td><td>三角分布，底边长度 \( l = 6 \)</td></tr>            <tr><td>IIS-LLD (Single)</td><td>传统单标签，仅用真实年龄</td></tr>            <tr><td>AGES</td><td>老化模式子空间维度 = 20</td></tr>            <tr><td>WAS</td><td>不需要设置参数</td></tr>            <tr><td>AAS</td><td>误差阈值 = 3，年龄段 = (0-9, 10-19, 20-39, 40-69)</td></tr>            <tr><td>KNN</td><td>邻近样本数 \( K = 30 \)</td></tr>            <tr><td>BP (神经网络)</td><td>隐藏层神经元 = 100</td></tr>            <tr><td>C4.5 (决策树)</td><td>使用 J4.8 版本，默认参数</td></tr>            <tr><td>SVM</td><td>核函数：RBF，核宽度 = 1</td></tr>            <tr><td>HumanA (灰度图像)</td><td>仅展示去除背景的灰度脸部图像</td></tr>            <tr><td>HumanB (彩色图像)</td><td>展示完整的彩色图像，包括头发、服饰、背景等</td></tr>        </tbody>    </table></body></html><p>实验结果如下所示，表现优于HumanA使用紫色柱形，优于HumanB加上竖直虚线：</p><p><img src="Age_Estimation_Results.png" /></p><p><em>从图中可以看出来，即使没有使用标签分布，IIS-LLD算法表现已经十分优秀，这得益于最大熵模型的良好性质，标签分布达到了锦上添花的效果，使得算法性能超过HumanB。高斯分布覆盖了所有年龄，而三角分布只覆盖了临近的年龄，单标签只覆盖本身的年龄，它们的表现优度依次递减。</em></p><p>论文还对两种标签分布的参数<spanclass="math inline">\(\sigma\)</span>、<spanclass="math inline">\(l\)</span>进行了调整，测试对应的MAE，结果如下：</p><p><img src="deviation.png" /></p><p><em>参数越大，意味着分布约分散。两个分布的参数为0时，都退化为单标签。在临近标签对真实标签做贡献但又不至于“喧宾夺主”间需要保持平衡，才能达到最好的效果。</em></p><p>接下来是对三种IIS-LLD算法和baseline中表现最好的AGES模型在各个年龄段内的MAE做可视化，n表示该年龄段内的样本数量。</p><p><img src="MAE_in_Different_Age_Ranges.png" /></p><p><em>在数据丰富低年龄段内，IIS-LLD模型稍逊于专门做面部年龄估计的AGES模型；而在数据稀疏的高年龄段内IIS-LLD模型明显优于AGES模型。这验证了论文用标签分布弥补数据不足缺陷的想法。</em></p><p>作者最后给出了标签分布存在应用价值的三个场景，帮助处理标签不确定性和数据稀缺问题：实例初始标签即为类分布；类之间存在强相关性；不同来源的标签存在争议。</p>]]></content>
-      
-      
+      <tags>
+        <tag>人工智能</tag>
+        <tag>机器学习</tag>
+        <tag>标签分布学习</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>精读解析|端到端的标签分布学习：突破函数形状限制</title>
+    <url>/zh-blog/2025/09/11/%E7%B2%BE%E8%AF%BB%E8%A7%A3%E6%9E%90-%E7%AB%AF%E5%88%B0%E7%AB%AF%E7%9A%84%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%E5%AD%A6%E4%B9%A0%EF%BC%9A%E7%AA%81%E7%A0%B4%E5%87%BD%E6%95%B0%E5%BD%A2%E7%8A%B6%E9%99%90%E5%88%B6/</url>
+    <content><![CDATA[<p>本文对 Xin Geng 等人的论文《Facial Age Estimation by Learning from
+Label Distributions》（2013 ）进行了精读。该工作是在 2011
+年提出的标签分布学习与 IIS-LLD
+算法基础上的拓展，提出了条件概率神经网络（CPNN），以端到端方式直接建模条件分布，突破了固定函数形状的限制。本文将重点说明
+CPNN 的建模流程，并总结其在 FG-NET 与 MORPH 数据集上的实验结果。</p>
+<span id="more"></span>
+<p><em>论文链接：<a
+href="https://ieeexplore.ieee.org/document/6475129">Facial Age
+Estimation by Learning from Label Distributions</a></em></p>
+<p><em>本文前置文章链接：<a
+href="https://jiashun-ye.github.io/zh-blog/2025/03/16/%E7%B2%BE%E8%AF%BB%E8%A7%A3%E6%9E%90-%E4%BB%8E%E5%8D%95%E4%B8%80%E6%A0%87%E7%AD%BE%E5%88%B0%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%EF%BC%9A%E9%9D%A2%E9%83%A8%E5%B9%B4%E9%BE%84%E4%BC%B0%E8%AE%A1%E7%9A%84%E6%96%B0%E6%96%B9%E6%B3%95/#more">精读解析|从单一标签到标签分布：面部年龄估计的新方法</a></em></p>
+<p>基于最大熵模型的 IIS-LLD
+需要预设条件概率分布的指数族形式，这一假设存在局限，容易导致模型错设。为突破这一限制，论文提出条件概率神经网络（CPNN），通过神经网络端到端建模
+<span
+class="math inline">\(p(y∣x)\)</span>，不依赖特定函数形状假设，并借助标签分布监督实现更灵活、更准确的年龄估计。</p>
+<h1 id="灵活的条件概率建模">灵活的条件概率建模</h1>
+<p>目标是直接学习条件分布 <span class="math inline">\(p(y\mid
+x)\)</span>。设输入特征 <span
+class="math inline">\(x\in\mathbb{R}^q\)</span>，离散年龄集合 <span
+class="math inline">\(\mathcal
+Y=\{y_1,\dots,y_c\}\)</span>，并记训练时给定的标签分布为 <span
+class="math inline">\(D_x(y)\)</span>。与最大熵模型 <span
+class="math inline">\(p(y\mid x;\theta)\propto
+\exp\!\big(\langle\theta,\phi(x,y)\rangle\big)\)</span>
+不同，三层感知机直接参数化 <span class="math inline">\(p(y\mid
+x)\)</span>，以提升非线性拟合能力并避免模型错设。这就是CPNN算法。</p>
+<p>直觉上可让网络接收特征 <span
+class="math inline">\(x\in\mathbb{R}^q\)</span> 并一次性输出长度为 <span
+class="math inline">\(c\)</span> 的年龄分布，但这会引入 <span
+class="math inline">\(\mathcal O(H\!\cdot\!c)\)</span> 的末层参数（<span
+class="math inline">\(H\)</span>
+为隐藏单元数），在样本有限时难以稳健训练。为此，将年龄 <span
+class="math inline">\(y\)</span> 也作为输入，采用共享参数的函数 <span
+class="math display">\[
+f_\theta(x,y)=\mathrm{MLP}_\theta\!\big([\;x,\
+\mathrm{enc}(y)\;]\big)\in\mathbb{R},
+\]</span> 对同一张图像的所有候选年龄 <span
+class="math inline">\(y\in\mathcal Y\)</span> 枚举得到 <span
+class="math inline">\(\{f_\theta(x,y)\}_{y\in\mathcal
+Y}\)</span>，再通过指数归一化获得条件概率 <span class="math display">\[
+p_\theta(y\mid
+x)=\frac{\exp\!\big(f_\theta(x,y)\big)}{\sum_{y&#39;\in\mathcal
+Y}\exp\!\big(f_\theta(x,y&#39;)\big)}.
+\]</span> 这种“<span class="math inline">\(y\)</span>
+作为输入、单输出标量”的设计既保持与 softmax
+相同的概率归一化形式，又显著降低参数规模，并在相邻年龄间实现自然的参数共享。</p>
+<p>训练目标为分布级交叉熵 <span class="math display">\[
+\mathcal L(\theta)=-\sum_{y\in\mathcal Y} D_x(y)\,\log p_\theta(y\mid
+x),\qquad
+p_\theta(y\mid
+x)=\frac{\exp(f_\theta(x,y))}{\sum_{y&#39;}\exp(f_\theta(x,y&#39;))}.
+\]</span> 其顶层梯度为 <span class="math inline">\(\partial \mathcal
+L/\partial f_\theta(x,y)=p_\theta(y\mid
+x)-D_x(y)\)</span>。反向传播中，输出层为线性单元，<span
+class="math inline">\(f_\theta(x,y)=\sum_{m=1}^{M_2}\theta_{31m}\,z^{(2)}_m(x,y)\)</span>，其中
+<span class="math inline">\(z^{(2)}_m=G(I_{2m})\)</span> 为隐藏层第
+<span class="math inline">\(m\)</span> 个单元的输出，<span
+class="math inline">\(I_{2m}=\sum_{k=0}^{M_1}\theta_{2mk}\,u_k\)</span>
+为其净输入，<span class="math inline">\(u=[1,x,\mathrm{enc}(y)]\)</span>
+是含偏置与年龄编码的输入拼接向量，<span class="math inline">\(G\)</span>
+为 sigmoid，<span class="math inline">\(G&#39;\)</span> 为其导数，<span
+class="math inline">\(\theta_{31m}\)</span> 为隐藏到输出的权重，<span
+class="math inline">\(\theta_{2mk}\)</span> 为输入到隐藏的权重。由此有
+<span class="math display">\[
+\frac{\partial \mathcal L}{\partial \theta_{31m}}
+=\sum_{y\in\mathcal Y}\big(p_\theta(y\mid
+x)-D_x(y)\big)\,z^{(2)}_m(x,y),\qquad
+\]</span> <span class="math display">\[
+\frac{\partial \mathcal L}{\partial \theta_{2mk}}
+=\sum_{y\in\mathcal Y}\big(p_\theta(y\mid
+x)-D_x(y)\big)\,\theta_{31m}\,G&#39;(I_{2m}(x,y))\,u_k(x,y),
+\]</span> 实践中采用标准 BP 反向传播训练即可。</p>
+<h1 id="实验和结果分析">实验和结果分析</h1>
+<p>FG-NET 采用 LOPO 验证与 MAE 评估，图像来自 82 人共 1002 张，年龄
+0–69；MORPH 使用 10 折交叉验证并以 MAE±std 汇报结果，年龄
+16–77。两套数据的 200 维特征来自不同管线：FG-NET
+使用外观模型（Appearance Model）抽取形状与灰度联合特征并取前 200
+个模型参数；MORPH 使用 BIF（Bio-Inspired Features），随后以
+MFA（Marginal Fisher Analysis）将特征降至 200
+维，从而在相同维度上对比算法表现。</p>
+<p>由于本文重点关注 CPNN，仅报告其表现。网络为三层感知机，隐藏层 400
+个单元，将年龄 y 与图像特征拼接为输入，经 softmax
+归一化得到条件分布并以分布级交叉熵训练；标签分布做
+Gaussian、Triangle、Single 三种对照以衡量相邻年龄的“软监督”。与 IIS-LLD
+的总体结论是：在相同特征与协议下，CPNN
+的平均误差更低，但更依赖数据、方差略高，而 IIS-LLD
+因最大熵形状先验与逐维增量优化更稳更快；在训练数据递减实验中 IIS-LLD
+曲线更平滑。只看 CPNN 的消融，Gaussian 的 σ 与 Triangle 的底边 l
+过窄（近似 Single）会削弱相邻监督、过宽会稀释主标签，适中最好（经验上
+σ≈2、l≈6）；相对于低龄样本充足的年龄段，以及相对于 Single 与 AGES
+等基线方法，在 60–69 岁等高龄稀疏段的相对改进幅度更大。</p>
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<style>
+  table { width: 76%; margin: 14px auto; border-collapse: collapse; font-size: 0.94em; }
+  thead th { border-top: 3px solid #000; border-bottom: 2px solid #000; padding: 4px 6px; text-align: center; background: #f6f6f6; }
+  tbody td { padding: 2px 6px; text-align: left; border-bottom: 1px solid #ddd; }
+  tbody tr:last-child td { border-bottom: 3px solid #000; }
+  caption { font-size: 1.12em; margin: 4px 0 2px; }
+</style>
+</head>
+<body>
+  <table>
+    <caption>CPNN 与 IIS-LLD 优缺点对照</caption>
+    <thead>
+      <tr>
+        <th>方法</th>
+        <th>优点</th>
+        <th>局限</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>IIS-LLD</td>
+        <td>最大熵形状先验带来稳定性；参数增量逐维优化，收敛更快；训练数据递减时曲线更平滑</td>
+        <td>预设 $p(y|x)$ 形状可能与任务不匹配；各标签分别学习参数，跨标签相关性利用不足</td>
+      </tr>
+      <tr>
+        <td>CPNN</td>
+        <td>不设 $p(y|x)$ 形状假设，表达更灵活；所有标签共享参数，可显式利用相邻年龄相关性，平均误差更低</td>
+        <td>更依赖数据、方差略高；端到端训练更慢，需用正则与适中分布尺度抑制过拟合</td>
+      </tr>
+    </tbody>
+  </table>
+</body>
+</html>
+
+<p>从成因上看，CPNN 直接建模 <span class="math inline">\(p(y|x)\)</span>
+并让所有标签共享参数，能把“相邻年龄相似”的结构以软监督方式注入网络，只要分布尺度设置得当，就能在数据较充足或特征表达较强时取得更低的
+MAE；对应地，自由度更高也让它对数据规模更敏感、方差略高。IIS-LLD 把
+<span class="math inline">\(p(y|x)\)</span>
+固定为最大熵的指数族形式，并通过逐维增量求解下界，参数更新更可控、更省算力，因而在样本有限、需要稳健与效率的场景往往更合适；但这种形状约束限制了对跨标签相关性的吸收，导致在大样本或强特征设置下平均误差通常不及
+CPNN。实际应用可据此取舍：若侧重极限精度且资源允许，优先 CPNN
+并配合合适的 <span class="math inline">\(σ\)</span>
+与正则；若侧重训练/推理效率或数据规模受限，优先 IIS-LLD。</p>
+]]></content>
       <categories>
-          
-          <category> 论文学习 </category>
-          
-          <category> 精读解析 </category>
-          
+        <category>论文学习</category>
+        <category>精读解析</category>
       </categories>
-      
-      
-        <tags>
-            
-            <tag> 人工智能 </tag>
-            
-            <tag> 机器学习 </tag>
-            
-            <tag> 标签分布学习 </tag>
-            
-        </tags>
-      
-    </entry>
-    
-    
-  
-  
+      <tags>
+        <tag>人工智能</tag>
+        <tag>机器学习</tag>
+        <tag>标签分布学习</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>代码复现|朴素标签分布学习实践</title>
+    <url>/zh-blog/2025/09/12/%E4%BB%A3%E7%A0%81%E5%A4%8D%E7%8E%B0-%E6%9C%B4%E7%B4%A0%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%E5%AD%A6%E4%B9%A0%E5%AE%9E%E8%B7%B5/</url>
+    <content><![CDATA[<p>本文对Xin Geng等人的论文《Facial Age Estimation by Learning from
+Label Distributions》（2011）及《Facial Age Estimation by Learning from
+Label Distributions》（2013）进行了复现。</p>
+<span id="more"></span>
+<p><em>本文前置文章链接：<a
+href="https://jiashun-ye.github.io/zh-blog/2025/03/16/%E7%B2%BE%E8%AF%BB%E8%A7%A3%E6%9E%90-%E4%BB%8E%E5%8D%95%E4%B8%80%E6%A0%87%E7%AD%BE%E5%88%B0%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%EF%BC%9A%E9%9D%A2%E9%83%A8%E5%B9%B4%E9%BE%84%E4%BC%B0%E8%AE%A1%E7%9A%84%E6%96%B0%E6%96%B9%E6%B3%95/">精读解析|从单一标签到标签分布：面部年龄估计的新方法</a>，
+<a
+href="https://jiashun-ye.github.io/zh-blog/2025/09/11/%E7%B2%BE%E8%AF%BB%E8%A7%A3%E6%9E%90-%E7%AB%AF%E5%88%B0%E7%AB%AF%E7%9A%84%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%E5%AD%A6%E4%B9%A0%EF%BC%9A%E7%AA%81%E7%A0%B4%E5%87%BD%E6%95%B0%E5%BD%A2%E7%8A%B6%E9%99%90%E5%88%B6/#more">精读解析|端到端的标签分布学习：突破函数形状限制</a></em></p>
+<h1 id="扩展实验">扩展实验</h1>
+<p>这次复现的目标是用统一的数据与特征管线，把条件概率神经网络（CPNN）在年龄估计上的流程跑通：先把图片全部转换为定长向量，再用标签分布学习（Label
+Distribution Learning）训练 CPNN，最终按既定协议在 Val
+上打分，并为后续的六个对比模型铺好评测口径。</p>
+<p>数据来自 MegaAge-Asian（<a
+href="https://aistudio.baidu.com/datasetdetail/45324">AI Studio
+数据集</a>）。这个数据集面向亚洲人脸年龄估计，提供了离散年龄标签及其对应的年龄后验分布文件，适合做分布级监督。我们只使用其中与年龄估计相关的部分，不涉及性别等其他属性；数据下载后按官方组织方式读取，再结合后续特征抽取与划分流程进行清洗与重排。</p>
+<p><img src="MegaAge_Asian.png" /></p>
+<p>特征提取器使用 MiVOLO（<a
+href="https://github.com/WildChlamydia/MiVOLO">GitHub</a>，<a
+href="https://arxiv.org/abs/2307.04616">论文</a>）。MiVOLO
+是一个面向年龄/性别估计的多输入
+Transformer，我们在本复现中将其作为纯特征抽取器，把每张图像转为固定长度的数值向量；具体实现中采用人脸与人体分支拼接的设置，得到
+768 维
+embedding，并为所有样本重新编号。检测不到人脸或人脸区域过小的极少量样本会被直接剔除，以免引入噪声与异常分布。</p>
+<p><img src="./age_distribution_overall.png" /></p>
+<p>数据划分采用 7:2:1 的固定比例：Train 用于参数学习，Test
+用于选超参数与早停，Val 仅用于最终打分与汇总。在这一协议下，Test
+不参与对外报告，从而尽量避免信息泄漏；Val
+作为“盲评集合”更贴近真实泛化表现。训练日志在每个 epoch
+实时打印验证集的期望年龄 MAE 与 CS5，早停以 Test loss
+为监控量，<code>patience=5</code>。</p>
+<p>为了把单一年龄标签转化为可利用相邻约束的软监督，我们将年龄 <span
+class="math inline">\(y\in\{0,\dots,70\}\)</span> 用标准差 <span
+class="math inline">\(\sigma=3\)</span> 的高斯核离散化为 71 维标签分布
+<span class="math inline">\(D_x(y)\)</span>。模型输出 <span
+class="math inline">\(\hat{p}(y\mid x)\)</span>
+后，以分布级交叉熵训练；评估时用最大可能年龄 <span
+class="math inline">\(\mathbb{E}[y]=\sum_y y\,\hat{p}(y\mid
+x)\)</span>作为实数预测，与真值计算 MAE，并在 Val 上做最终汇总。</p>
+<p>模型部分先聚焦 CPNN。我们在相同特征与划分设置下尝试了 6 种 CPNN
+结构，最终选取在 Test 集上表现最好的三层版本作为报告模型。该模型是一个
+多层感知机，采用 ReLU 与适度的 Dropout，优化器为
+AdamW；训练全程遵循上面的早停与打印协议，并在结束时基于最佳 epoch 的 Val
+预测计算整体 MAE 与 0–70 各年龄的分龄
+MAE。接下来会在同一口径下补齐六个对比模型，以便形成可复现实验与对照表。</p>
+<p><img src="CPNN训练误差图.png" /></p>
+]]></content>
+      <categories>
+        <category>论文学习</category>
+        <category>代码复现</category>
+      </categories>
+      <tags>
+        <tag>人工智能</tag>
+        <tag>机器学习</tag>
+        <tag>标签分布学习</tag>
+      </tags>
+  </entry>
 </search>
