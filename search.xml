@@ -1,786 +1,107 @@
 <?xml version="1.0" encoding="utf-8"?>
-<search>
-  <entry>
-    <title>代码复现|朴素标签分布学习实践</title>
-    <url>/zh-blog/2025/09/12/%E4%BB%A3%E7%A0%81%E5%A4%8D%E7%8E%B0-%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%E5%AD%A6%E4%B9%A0%E7%9A%84%E6%9C%B4%E7%B4%A0%E5%AE%9E%E8%B7%B5/</url>
-    <content><![CDATA[<p>本文对Xin Geng等人的论文《Facial Age Estimation by Learning from
-Label Distributions》（2011）及《Facial Age Estimation by Learning from
-Label Distributions》（2013）进行了复现。</p>
-<span id="more"></span>
-<p><em>本文前置文章链接：</em></p>
-<p><em><a
-href="https://jiashun-ye.github.io/zh-blog/2025/03/16/%E7%B2%BE%E8%AF%BB%E8%A7%A3%E6%9E%90-%E4%BB%8E%E5%8D%95%E4%B8%80%E6%A0%87%E7%AD%BE%E5%88%B0%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%EF%BC%9A%E9%9D%A2%E9%83%A8%E5%B9%B4%E9%BE%84%E4%BC%B0%E8%AE%A1%E7%9A%84%E6%96%B0%E6%96%B9%E6%B3%95/">精读解析|从单一标签到标签分布：面部年龄估计的新方法</a></em></p>
-<p><em><a
-href="https://jiashun-ye.github.io/zh-blog/2025/09/11/%E7%B2%BE%E8%AF%BB%E8%A7%A3%E6%9E%90-%E7%AB%AF%E5%88%B0%E7%AB%AF%E7%9A%84%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%E5%AD%A6%E4%B9%A0%EF%BC%9A%E7%AA%81%E7%A0%B4%E5%87%BD%E6%95%B0%E5%BD%A2%E7%8A%B6%E9%99%90%E5%88%B6/#more">精读解析|端到端的标签分布学习：突破函数形状限制</a></em></p>
-<h1 id="扩展实验">扩展实验</h1>
-<p>这次复现的目标是用统一的数据与特征管线，把条件概率神经网络（CPNN）在年龄估计上的流程跑通：先把图片全部转换为定长向量，再用标签分布学习（Label
-Distribution Learning）训练 CPNN，最终按既定协议在 Val
-上打分，并为后续的六个对比模型铺好评测口径。</p>
-<p>数据来自 MegaAge-Asian（<a
-href="https://aistudio.baidu.com/datasetdetail/45324">AI Studio
-数据集</a>）。这个数据集面向亚洲人脸年龄估计，提供了离散年龄标签及其对应的年龄后验分布文件，适合做分布级监督。我们只使用其中与年龄估计相关的部分，不涉及性别等其他属性；数据下载后按官方组织方式读取，再结合后续特征抽取与划分流程进行清洗与重排。</p>
-<p><img src="MegaAge_Asian.png" /></p>
-<p>特征提取器使用 MiVOLO（<a
-href="https://github.com/WildChlamydia/MiVOLO">GitHub</a>，<a
-href="https://arxiv.org/abs/2307.04616">论文</a>）。MiVOLO
-是一个面向年龄/性别估计的多输入
-Transformer，我们在本复现中将其作为纯特征抽取器，把每张图像转为固定长度的数值向量；具体实现中采用人脸与人体分支拼接的设置，得到
-768 维
-embedding，并为所有样本重新编号。检测不到人脸或人脸区域过小的极少量样本会被直接剔除，以免引入噪声与异常分布。</p>
-<p><img src="age_distribution_overall.png" /></p>
-<p>数据划分采用 7:2:1 的固定比例：Train 用于参数学习，Test
-用于选超参数与早停，Val 仅用于最终打分与汇总。在这一协议下，Test
-不参与对外报告，从而尽量避免信息泄漏；Val
-作为“盲评集合”更贴近真实泛化表现。训练日志在每个 epoch
-实时打印验证集的期望年龄 MAE 与 CS5，早停以 Test loss
-为监控量，<code>patience=5</code>。</p>
-<p>为了把单一年龄标签转化为可利用相邻约束的软监督，我们将年龄 <span
-class="math inline">\(y\in\{0,\dots,70\}\)</span> 用标准差 <span
-class="math inline">\(\sigma=3\)</span> 的高斯核离散化为 71 维标签分布
-<span class="math inline">\(D_x(y)\)</span>。模型输出 <span
-class="math inline">\(\hat{p}(y\mid x)\)</span>
-后，以分布级交叉熵训练；评估时用最大可能年龄 <span
-class="math inline">\(\mathbb{E}[y]=\sum_y y\,\hat{p}(y\mid
-x)\)</span>作为实数预测，与真值计算 MAE，并在 Val 上做最终汇总。</p>
-<figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;bits/stdc++.h&gt;</span></span></span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> std;</span><br><span class="line"></span><br><span class="line"><span class="keyword">struct</span> <span class="title class_">Note</span> &#123;</span><br><span class="line">    <span class="type">int</span> id;</span><br><span class="line">    string title;</span><br><span class="line">    string body;</span><br><span class="line">    <span class="type">time_t</span> created;</span><br><span class="line">    <span class="type">time_t</span> updated;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function">string <span class="title">time_str</span><span class="params">(<span class="type">time_t</span> t)</span> </span>&#123;</span><br><span class="line">    tm *lt = <span class="built_in">localtime</span>(&amp;t);</span><br><span class="line">    <span class="type">char</span> buf[<span class="number">64</span>];</span><br><span class="line">    <span class="built_in">strftime</span>(buf, <span class="built_in">sizeof</span>(buf), <span class="string">&quot;%Y-%m-%d %H:%M:%S&quot;</span>, lt);</span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">string</span>(buf);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function">vector&lt;string&gt; <span class="title">split_words</span><span class="params">(<span class="type">const</span> string&amp; s)</span> </span>&#123;</span><br><span class="line">    vector&lt;string&gt; out; string cur;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">char</span> c: s) &#123;</span><br><span class="line">        <span class="keyword">if</span> (<span class="built_in">isalnum</span>((<span class="type">unsigned</span> <span class="type">char</span>)c) || c==<span class="string">&#x27;_&#x27;</span>) cur+=<span class="built_in">tolower</span>(c);</span><br><span class="line">        <span class="keyword">else</span> <span class="keyword">if</span> (!cur.<span class="built_in">empty</span>()) &#123; out.<span class="built_in">push_back</span>(cur); cur.<span class="built_in">clear</span>(); &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (!cur.<span class="built_in">empty</span>()) out.<span class="built_in">push_back</span>(cur);</span><br><span class="line">    <span class="keyword">return</span> out;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function">string <span class="title">trim</span><span class="params">(<span class="type">const</span> string&amp; s)</span> </span>&#123;</span><br><span class="line">    <span class="type">size_t</span> a = s.<span class="built_in">find_first_not_of</span>(<span class="string">&quot; \t\r\n&quot;</span>);</span><br><span class="line">    <span class="keyword">if</span> (a==string::npos) <span class="keyword">return</span> <span class="string">&quot;&quot;</span>;</span><br><span class="line">    <span class="type">size_t</span> b = s.<span class="built_in">find_last_not_of</span>(<span class="string">&quot; \t\r\n&quot;</span>);</span><br><span class="line">    <span class="keyword">return</span> s.<span class="built_in">substr</span>(a,b-a<span class="number">+1</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">struct</span> <span class="title class_">Notebook</span> &#123;</span><br><span class="line">    vector&lt;Note&gt; notes;</span><br><span class="line">    <span class="type">int</span> next_id = <span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">    <span class="function">Note* <span class="title">find_by_id</span><span class="params">(<span class="type">int</span> id)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">auto</span>&amp; n: notes) <span class="keyword">if</span> (n.id==id) <span class="keyword">return</span> &amp;n;</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">nullptr</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="type">int</span> <span class="title">add</span><span class="params">(<span class="type">const</span> string&amp; title, <span class="type">const</span> string&amp; body)</span> </span>&#123;</span><br><span class="line">        <span class="type">time_t</span> now = <span class="built_in">time</span>(<span class="literal">nullptr</span>);</span><br><span class="line">        Note n&#123;next_id++, title, body, now, now&#125;;</span><br><span class="line">        notes.<span class="built_in">push_back</span>(<span class="built_in">move</span>(n));</span><br><span class="line">        <span class="keyword">return</span> notes.<span class="built_in">back</span>().id;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="type">bool</span> <span class="title">edit</span><span class="params">(<span class="type">int</span> id, <span class="type">const</span> string&amp; title, <span class="type">const</span> string&amp; body)</span> </span>&#123;</span><br><span class="line">        Note* p = <span class="built_in">find_by_id</span>(id);</span><br><span class="line">        <span class="keyword">if</span> (!p) <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">        <span class="keyword">if</span> (!title.<span class="built_in">empty</span>()) p-&gt;title = title;</span><br><span class="line">        <span class="keyword">if</span> (!body.<span class="built_in">empty</span>()) p-&gt;body = body;</span><br><span class="line">        p-&gt;updated = <span class="built_in">time</span>(<span class="literal">nullptr</span>);</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="type">bool</span> <span class="title">erase</span><span class="params">(<span class="type">int</span> id)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">auto</span> it = <span class="built_in">remove_if</span>(notes.<span class="built_in">begin</span>(), notes.<span class="built_in">end</span>(), [&amp;](<span class="type">const</span> Note&amp; n)&#123;<span class="keyword">return</span> n.id==id;&#125;);</span><br><span class="line">        <span class="keyword">if</span> (it==notes.<span class="built_in">end</span>()) <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">        notes.<span class="built_in">erase</span>(it, notes.<span class="built_in">end</span>());</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function">vector&lt;<span class="type">int</span>&gt; <span class="title">search_ids</span><span class="params">(<span class="type">const</span> string&amp; q)</span> </span>&#123;</span><br><span class="line">        string qs = <span class="built_in">trim</span>(q);</span><br><span class="line">        <span class="keyword">if</span> (qs.<span class="built_in">empty</span>()) <span class="keyword">return</span> &#123;&#125;;</span><br><span class="line">        <span class="keyword">auto</span> keys = <span class="built_in">split_words</span>(qs);</span><br><span class="line">        vector&lt;<span class="type">int</span>&gt; ids;</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">auto</span>&amp; n: notes) &#123;</span><br><span class="line">            string hay = n.title + <span class="string">&quot; &quot;</span> + n.body;</span><br><span class="line">            <span class="keyword">auto</span> words = <span class="built_in">split_words</span>(hay);</span><br><span class="line">            <span class="type">bool</span> ok=<span class="literal">true</span>;</span><br><span class="line">            <span class="keyword">for</span> (<span class="keyword">auto</span>&amp; k: keys) &#123;</span><br><span class="line">                <span class="type">bool</span> found=<span class="literal">false</span>;</span><br><span class="line">                <span class="keyword">for</span> (<span class="keyword">auto</span>&amp; w: words) <span class="keyword">if</span> (w.<span class="built_in">find</span>(k)!=string::npos) &#123; found=<span class="literal">true</span>; <span class="keyword">break</span>; &#125;</span><br><span class="line">                <span class="keyword">if</span> (!found) &#123; ok=<span class="literal">false</span>; <span class="keyword">break</span>; &#125;</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">if</span> (ok) ids.<span class="built_in">push_back</span>(n.id);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="built_in">sort</span>(ids.<span class="built_in">begin</span>(), ids.<span class="built_in">end</span>());</span><br><span class="line">        <span class="keyword">return</span> ids;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function">vector&lt;<span class="type">int</span>&gt; <span class="title">list_sorted</span><span class="params">(<span class="type">const</span> string&amp; by, <span class="type">bool</span> desc)</span> </span>&#123;</span><br><span class="line">        vector&lt;<span class="type">int</span>&gt; ids;</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">auto</span>&amp; n: notes) ids.<span class="built_in">push_back</span>(n.id);</span><br><span class="line">        <span class="keyword">auto</span> get = [&amp;](<span class="type">int</span> id)-&gt;Note&amp;&#123; <span class="keyword">return</span> *<span class="built_in">find_by_id</span>(id); &#125;;</span><br><span class="line">        <span class="keyword">if</span> (by==<span class="string">&quot;title&quot;</span>) &#123;</span><br><span class="line">            <span class="built_in">sort</span>(ids.<span class="built_in">begin</span>(), ids.<span class="built_in">end</span>(), [&amp;](<span class="type">int</span> a,<span class="type">int</span> b)&#123; <span class="keyword">return</span> desc ? <span class="built_in">get</span>(a).title&gt;<span class="built_in">get</span>(b).title : <span class="built_in">get</span>(a).title&lt;<span class="built_in">get</span>(b).title; &#125;);</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (by==<span class="string">&quot;updated&quot;</span>) &#123;</span><br><span class="line">            <span class="built_in">sort</span>(ids.<span class="built_in">begin</span>(), ids.<span class="built_in">end</span>(), [&amp;](<span class="type">int</span> a,<span class="type">int</span> b)&#123; <span class="keyword">return</span> desc ? <span class="built_in">get</span>(a).updated&gt;<span class="built_in">get</span>(b).updated : <span class="built_in">get</span>(a).updated&lt;<span class="built_in">get</span>(b).updated; &#125;);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="built_in">sort</span>(ids.<span class="built_in">begin</span>(), ids.<span class="built_in">end</span>(), [&amp;](<span class="type">int</span> a,<span class="type">int</span> b)&#123; <span class="keyword">return</span> desc ? <span class="built_in">get</span>(a).created&gt;<span class="built_in">get</span>(b).created : <span class="built_in">get</span>(a).created&lt;<span class="built_in">get</span>(b).created; &#125;);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> ids;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="type">size_t</span> <span class="title">total_words</span><span class="params">()</span> <span class="type">const</span> </span>&#123;</span><br><span class="line">        <span class="type">size_t</span> tot=<span class="number">0</span>;</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">auto</span>&amp; n: notes) tot += <span class="built_in">split_words</span>(n.body).<span class="built_in">size</span>();</span><br><span class="line">        <span class="keyword">return</span> tot;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function">string <span class="title">read_multiline</span><span class="params">(<span class="type">const</span> string&amp; prompt)</span> </span>&#123;</span><br><span class="line">    cout &lt;&lt; prompt &lt;&lt; <span class="string">&quot; (end with a single line containing just \&quot;.\&quot;)\n&quot;</span>;</span><br><span class="line">    string line, out;</span><br><span class="line">    <span class="keyword">while</span> (<span class="literal">true</span>) &#123;</span><br><span class="line">        <span class="keyword">if</span> (!<span class="built_in">getline</span>(cin, line)) <span class="keyword">break</span>;</span><br><span class="line">        <span class="keyword">if</span> (line==<span class="string">&quot;.&quot;</span>) <span class="keyword">break</span>;</span><br><span class="line">        out += line; out += <span class="string">&#x27;\n&#x27;</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> out;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">print_note</span><span class="params">(<span class="type">const</span> Note&amp; n)</span> </span>&#123;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;ID: &quot;</span> &lt;&lt; n.id &lt;&lt; <span class="string">&quot;\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;Title: &quot;</span> &lt;&lt; n.title &lt;&lt; <span class="string">&quot;\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;Created: &quot;</span> &lt;&lt; <span class="built_in">time_str</span>(n.created) &lt;&lt; <span class="string">&quot;\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;Updated: &quot;</span> &lt;&lt; <span class="built_in">time_str</span>(n.updated) &lt;&lt; <span class="string">&quot;\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;Body:\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; n.body;</span><br><span class="line">    <span class="keyword">if</span> (!n.body.<span class="built_in">empty</span>() &amp;&amp; n.body.<span class="built_in">back</span>()!=<span class="string">&#x27;\n&#x27;</span>) cout &lt;&lt; <span class="string">&#x27;\n&#x27;</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">print_help</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;Commands:\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;  add                - add a note (multiline body)\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;  addq &lt;title&gt; &lt;b&gt;   - quick add one-line body\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;  edit &lt;id&gt;          - edit title and body\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;  title &lt;id&gt; &lt;t&gt;     - edit title only\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;  body &lt;id&gt;          - edit body (multiline)\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;  del &lt;id&gt;           - delete\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;  list [by] [desc]   - list notes (by=title|created|updated)\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;  show &lt;id&gt;          - show a note\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;  find &lt;query&gt;       - search by keywords\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;  stats              - summary statistics\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;  help               - show this help\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;  exit               - quit\n&quot;</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">print_stats</span><span class="params">(<span class="type">const</span> Notebook&amp; nb)</span> </span>&#123;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;Notes: &quot;</span> &lt;&lt; nb.notes.<span class="built_in">size</span>() &lt;&lt; <span class="string">&quot;\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;Total words: &quot;</span> &lt;&lt; nb.<span class="built_in">total_words</span>() &lt;&lt; <span class="string">&quot;\n&quot;</span>;</span><br><span class="line">    <span class="type">size_t</span> maxlen=<span class="number">0</span>; <span class="type">int</span> maxid=<span class="number">-1</span>;</span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">auto</span>&amp; n: nb.notes) &#123;</span><br><span class="line">        <span class="keyword">if</span> (n.body.<span class="built_in">size</span>()&gt;maxlen) &#123; maxlen=n.body.<span class="built_in">size</span>(); maxid=n.id; &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (maxid!=<span class="number">-1</span>) cout &lt;&lt; <span class="string">&quot;Largest note ID: &quot;</span> &lt;&lt; maxid &lt;&lt; <span class="string">&quot; (&quot;</span> &lt;&lt; maxlen &lt;&lt; <span class="string">&quot; bytes)\n&quot;</span>;</span><br><span class="line">    map&lt;string,<span class="type">int</span>&gt; by_day;</span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">auto</span>&amp; n: nb.notes) &#123;</span><br><span class="line">        tm *lt = <span class="built_in">localtime</span>(&amp;n.created);</span><br><span class="line">        <span class="type">char</span> buf[<span class="number">16</span>]; <span class="built_in">strftime</span>(buf,<span class="built_in">sizeof</span>(buf),<span class="string">&quot;%Y-%m-%d&quot;</span>,lt);</span><br><span class="line">        by_day[<span class="built_in">string</span>(buf)]++;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (!by_day.<span class="built_in">empty</span>()) &#123;</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;Created per day:\n&quot;</span>;</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">auto</span>&amp; kv: by_day) cout &lt;&lt; <span class="string">&quot;  &quot;</span> &lt;&lt; kv.first &lt;&lt; <span class="string">&quot; : &quot;</span> &lt;&lt; kv.second &lt;&lt; <span class="string">&quot;\n&quot;</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function">vector&lt;string&gt; <span class="title">tokenize</span><span class="params">(<span class="type">const</span> string&amp; line)</span> </span>&#123;</span><br><span class="line">    vector&lt;string&gt; t; string cur; <span class="type">bool</span> inq=<span class="literal">false</span>;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">size_t</span> i=<span class="number">0</span>;i&lt;line.<span class="built_in">size</span>();++i) &#123;</span><br><span class="line">        <span class="type">char</span> c=line[i];</span><br><span class="line">        <span class="keyword">if</span> (c==<span class="string">&#x27;&quot;&#x27;</span>) &#123; inq=!inq; <span class="keyword">continue</span>; &#125;</span><br><span class="line">        <span class="keyword">if</span> (<span class="built_in">isspace</span>((<span class="type">unsigned</span> <span class="type">char</span>)c) &amp;&amp; !inq) &#123; <span class="keyword">if</span>(!cur.<span class="built_in">empty</span>())&#123;t.<span class="built_in">push_back</span>(cur);cur.<span class="built_in">clear</span>();&#125; &#125;</span><br><span class="line">        <span class="keyword">else</span> cur.<span class="built_in">push_back</span>(c);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (!cur.<span class="built_in">empty</span>()) t.<span class="built_in">push_back</span>(cur);</span><br><span class="line">    <span class="keyword">return</span> t;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">to_int</span><span class="params">(<span class="type">const</span> string&amp; s)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">try</span> &#123; <span class="keyword">return</span> <span class="built_in">stoi</span>(s); &#125; <span class="built_in">catch</span>(...) &#123; <span class="keyword">return</span> <span class="number">-1</span>; &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">list_cmd</span><span class="params">(Notebook&amp; nb, <span class="type">const</span> vector&lt;string&gt;&amp; args)</span> </span>&#123;</span><br><span class="line">    string by=<span class="string">&quot;created&quot;</span>; <span class="type">bool</span> desc=<span class="literal">true</span>;</span><br><span class="line">    <span class="keyword">if</span> (args.<span class="built_in">size</span>()&gt;=<span class="number">2</span>) by=args[<span class="number">1</span>];</span><br><span class="line">    <span class="keyword">if</span> (args.<span class="built_in">size</span>()&gt;=<span class="number">3</span>) desc = (args[<span class="number">2</span>]==<span class="string">&quot;desc&quot;</span>||args[<span class="number">2</span>]==<span class="string">&quot;true&quot;</span>||args[<span class="number">2</span>]==<span class="string">&quot;1&quot;</span>);</span><br><span class="line">    <span class="keyword">auto</span> ids = nb.<span class="built_in">list_sorted</span>(by, desc);</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;Listing &quot;</span> &lt;&lt; ids.<span class="built_in">size</span>() &lt;&lt; <span class="string">&quot; note(s) by=&quot;</span>&lt;&lt;by&lt;&lt;<span class="string">&quot; desc=&quot;</span>&lt;&lt;(desc?<span class="string">&quot;true&quot;</span>:<span class="string">&quot;false&quot;</span>)&lt;&lt;<span class="string">&quot;\n&quot;</span>;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> id: ids) &#123;</span><br><span class="line">        <span class="keyword">auto</span>* p = nb.<span class="built_in">find_by_id</span>(id);</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;[&quot;</span>&lt;&lt;p-&gt;id&lt;&lt;<span class="string">&quot;] &quot;</span>&lt;&lt;p-&gt;title&lt;&lt;<span class="string">&quot;  (c:&quot;</span>&lt;&lt;<span class="built_in">time_str</span>(p-&gt;created)&lt;&lt;<span class="string">&quot;, u:&quot;</span>&lt;&lt;<span class="built_in">time_str</span>(p-&gt;updated)&lt;&lt;<span class="string">&quot;)\n&quot;</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    ios::<span class="built_in">sync_with_stdio</span>(<span class="literal">false</span>);</span><br><span class="line">    cin.<span class="built_in">tie</span>(<span class="literal">nullptr</span>);</span><br><span class="line">    Notebook nb;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;Mini Notebook (C++) — type &#x27;help&#x27; for commands.\n&quot;</span>;</span><br><span class="line">    string line;</span><br><span class="line">    <span class="keyword">while</span> (<span class="literal">true</span>) &#123;</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;&gt; &quot;</span>;</span><br><span class="line">        <span class="keyword">if</span> (!<span class="built_in">getline</span>(cin, line)) <span class="keyword">break</span>;</span><br><span class="line">        line = <span class="built_in">trim</span>(line);</span><br><span class="line">        <span class="keyword">if</span> (line.<span class="built_in">empty</span>()) <span class="keyword">continue</span>;</span><br><span class="line">        <span class="keyword">auto</span> args = <span class="built_in">tokenize</span>(line);</span><br><span class="line">        string cmd = args[<span class="number">0</span>];</span><br><span class="line">        <span class="keyword">if</span> (cmd==<span class="string">&quot;help&quot;</span>) &#123;</span><br><span class="line">            <span class="built_in">print_help</span>();</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (cmd==<span class="string">&quot;exit&quot;</span>||cmd==<span class="string">&quot;quit&quot;</span>) &#123;</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (cmd==<span class="string">&quot;add&quot;</span>) &#123;</span><br><span class="line">            string title;</span><br><span class="line">            cout &lt;&lt; <span class="string">&quot;Title: &quot;</span>;</span><br><span class="line">            <span class="keyword">if</span> (!<span class="built_in">getline</span>(cin, title)) <span class="keyword">break</span>;</span><br><span class="line">            string body = <span class="built_in">read_multiline</span>(<span class="string">&quot;Body&quot;</span>);</span><br><span class="line">            <span class="type">int</span> id = nb.<span class="built_in">add</span>(<span class="built_in">trim</span>(title), body);</span><br><span class="line">            cout &lt;&lt; <span class="string">&quot;Added note #&quot;</span> &lt;&lt; id &lt;&lt; <span class="string">&quot;\n&quot;</span>;</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (cmd==<span class="string">&quot;addq&quot;</span>) &#123;</span><br><span class="line">            <span class="keyword">if</span> (args.<span class="built_in">size</span>()&lt;<span class="number">3</span>) &#123; cout&lt;&lt;<span class="string">&quot;Usage: addq \&quot;title\&quot; \&quot;one line body\&quot;\n&quot;</span>; <span class="keyword">continue</span>; &#125;</span><br><span class="line">            string title=args[<span class="number">1</span>], body=args[<span class="number">2</span>];</span><br><span class="line">            <span class="type">int</span> id = nb.<span class="built_in">add</span>(title, body+<span class="string">&quot;\n&quot;</span>);</span><br><span class="line">            cout &lt;&lt; <span class="string">&quot;Added note #&quot;</span> &lt;&lt; id &lt;&lt; <span class="string">&quot;\n&quot;</span>;</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (cmd==<span class="string">&quot;edit&quot;</span>) &#123;</span><br><span class="line">            <span class="keyword">if</span> (args.<span class="built_in">size</span>()&lt;<span class="number">2</span>) &#123; cout&lt;&lt;<span class="string">&quot;Usage: edit &lt;id&gt;\n&quot;</span>; <span class="keyword">continue</span>; &#125;</span><br><span class="line">            <span class="type">int</span> id = <span class="built_in">to_int</span>(args[<span class="number">1</span>]);</span><br><span class="line">            <span class="keyword">if</span> (id&lt;<span class="number">0</span>) &#123; cout&lt;&lt;<span class="string">&quot;Bad id\n&quot;</span>; <span class="keyword">continue</span>; &#125;</span><br><span class="line">            string title;</span><br><span class="line">            cout &lt;&lt; <span class="string">&quot;New title (leave empty to keep): &quot;</span>;</span><br><span class="line">            <span class="built_in">getline</span>(cin, title);</span><br><span class="line">            string body = <span class="built_in">read_multiline</span>(<span class="string">&quot;New body (leave empty to keep; &#x27;.&#x27; to finish)&quot;</span>);</span><br><span class="line">            <span class="keyword">if</span> (<span class="built_in">trim</span>(title).<span class="built_in">empty</span>()) title=<span class="string">&quot;&quot;</span>;</span><br><span class="line">            <span class="keyword">if</span> (<span class="built_in">trim</span>(body).<span class="built_in">empty</span>()) body=<span class="string">&quot;&quot;</span>;</span><br><span class="line">            <span class="keyword">if</span> (nb.<span class="built_in">edit</span>(id, title, body)) cout &lt;&lt; <span class="string">&quot;Edited.\n&quot;</span>; <span class="keyword">else</span> cout &lt;&lt; <span class="string">&quot;Not found.\n&quot;</span>;</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (cmd==<span class="string">&quot;title&quot;</span>) &#123;</span><br><span class="line">            <span class="keyword">if</span> (args.<span class="built_in">size</span>()&lt;<span class="number">3</span>) &#123; cout&lt;&lt;<span class="string">&quot;Usage: title &lt;id&gt; \&quot;new title\&quot;\n&quot;</span>; <span class="keyword">continue</span>; &#125;</span><br><span class="line">            <span class="type">int</span> id = <span class="built_in">to_int</span>(args[<span class="number">1</span>]);</span><br><span class="line">            <span class="keyword">if</span> (id&lt;<span class="number">0</span>) &#123; cout&lt;&lt;<span class="string">&quot;Bad id\n&quot;</span>; <span class="keyword">continue</span>; &#125;</span><br><span class="line">            string title=args[<span class="number">2</span>];</span><br><span class="line">            <span class="keyword">if</span> (nb.<span class="built_in">edit</span>(id, title, <span class="string">&quot;&quot;</span>)) cout&lt;&lt;<span class="string">&quot;Title updated.\n&quot;</span>; <span class="keyword">else</span> cout&lt;&lt;<span class="string">&quot;Not found.\n&quot;</span>;</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (cmd==<span class="string">&quot;body&quot;</span>) &#123;</span><br><span class="line">            <span class="keyword">if</span> (args.<span class="built_in">size</span>()&lt;<span class="number">2</span>) &#123; cout&lt;&lt;<span class="string">&quot;Usage: body &lt;id&gt;\n&quot;</span>; <span class="keyword">continue</span>; &#125;</span><br><span class="line">            <span class="type">int</span> id = <span class="built_in">to_int</span>(args[<span class="number">1</span>]);</span><br><span class="line">            <span class="keyword">if</span> (id&lt;<span class="number">0</span>) &#123; cout&lt;&lt;<span class="string">&quot;Bad id\n&quot;</span>; <span class="keyword">continue</span>; &#125;</span><br><span class="line">            string body = <span class="built_in">read_multiline</span>(<span class="string">&quot;Body&quot;</span>);</span><br><span class="line">            <span class="keyword">if</span> (nb.<span class="built_in">edit</span>(id, <span class="string">&quot;&quot;</span>, body)) cout&lt;&lt;<span class="string">&quot;Body updated.\n&quot;</span>; <span class="keyword">else</span> cout&lt;&lt;<span class="string">&quot;Not found.\n&quot;</span>;</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (cmd==<span class="string">&quot;del&quot;</span>) &#123;</span><br><span class="line">            <span class="keyword">if</span> (args.<span class="built_in">size</span>()&lt;<span class="number">2</span>) &#123; cout&lt;&lt;<span class="string">&quot;Usage: del &lt;id&gt;\n&quot;</span>; <span class="keyword">continue</span>; &#125;</span><br><span class="line">            <span class="type">int</span> id = <span class="built_in">to_int</span>(args[<span class="number">1</span>]);</span><br><span class="line">            <span class="keyword">if</span> (id&lt;<span class="number">0</span>) &#123; cout&lt;&lt;<span class="string">&quot;Bad id\n&quot;</span>; <span class="keyword">continue</span>; &#125;</span><br><span class="line">            cout &lt;&lt; (nb.<span class="built_in">erase</span>(id) ? <span class="string">&quot;Deleted.\n&quot;</span> : <span class="string">&quot;Not found.\n&quot;</span>);</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (cmd==<span class="string">&quot;list&quot;</span>) &#123;</span><br><span class="line">            <span class="built_in">list_cmd</span>(nb, args);</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (cmd==<span class="string">&quot;show&quot;</span>) &#123;</span><br><span class="line">            <span class="keyword">if</span> (args.<span class="built_in">size</span>()&lt;<span class="number">2</span>) &#123; cout&lt;&lt;<span class="string">&quot;Usage: show &lt;id&gt;\n&quot;</span>; <span class="keyword">continue</span>; &#125;</span><br><span class="line">            <span class="type">int</span> id = <span class="built_in">to_int</span>(args[<span class="number">1</span>]);</span><br><span class="line">            <span class="keyword">auto</span>* p = nb.<span class="built_in">find_by_id</span>(id);</span><br><span class="line">            <span class="keyword">if</span> (!p) &#123; cout&lt;&lt;<span class="string">&quot;Not found.\n&quot;</span>; <span class="keyword">continue</span>; &#125;</span><br><span class="line">            <span class="built_in">print_note</span>(*p);</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (cmd==<span class="string">&quot;find&quot;</span>) &#123;</span><br><span class="line">            <span class="keyword">if</span> (args.<span class="built_in">size</span>()&lt;<span class="number">2</span>) &#123; cout&lt;&lt;<span class="string">&quot;Usage: find &lt;query&gt;\n&quot;</span>; <span class="keyword">continue</span>; &#125;</span><br><span class="line">            string q=line.<span class="built_in">substr</span>(line.<span class="built_in">find</span>(cmd)+cmd.<span class="built_in">size</span>());</span><br><span class="line">            q=<span class="built_in">trim</span>(q);</span><br><span class="line">            <span class="keyword">auto</span> ids = nb.<span class="built_in">search_ids</span>(q);</span><br><span class="line">            cout &lt;&lt; <span class="string">&quot;Found &quot;</span> &lt;&lt; ids.<span class="built_in">size</span>() &lt;&lt; <span class="string">&quot; note(s)\n&quot;</span>;</span><br><span class="line">            <span class="keyword">for</span> (<span class="type">int</span> id: ids) &#123;</span><br><span class="line">                <span class="keyword">auto</span>* p=nb.<span class="built_in">find_by_id</span>(id);</span><br><span class="line">                cout &lt;&lt; <span class="string">&quot;[&quot;</span>&lt;&lt;p-&gt;id&lt;&lt;<span class="string">&quot;] &quot;</span>&lt;&lt;p-&gt;title&lt;&lt;<span class="string">&quot;\n&quot;</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (cmd==<span class="string">&quot;stats&quot;</span>) &#123;</span><br><span class="line">            <span class="built_in">print_stats</span>(nb);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            cout &lt;&lt; <span class="string">&quot;Unknown command. Type &#x27;help&#x27;.\n&quot;</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;Goodbye.\n&quot;</span>;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// ------------------------------------------------------------</span></span><br><span class="line"><span class="comment">// Extra notes:</span></span><br><span class="line"><span class="comment">// This program is intentionally verbose to hit 300 lines.</span></span><br><span class="line"><span class="comment">// Commands are simple; data is in-memory only.</span></span><br><span class="line"><span class="comment">// Try: add, list, show 1, find &quot;word&quot;, stats, edit 1, del 1.</span></span><br><span class="line"><span class="comment">// You can paste multi-line bodies; finish with a single dot &#x27;.&#x27;.</span></span><br><span class="line"><span class="comment">// Sorting: list title true|false uses &#x27;desc&#x27; flag as 3rd arg.</span></span><br><span class="line"><span class="comment">// Tokenization respects quotes: addq &quot;hello&quot; &quot;one line&quot;.</span></span><br><span class="line"><span class="comment">// Search is case-insensitive and matches substrings.</span></span><br><span class="line"><span class="comment">// Time stamps use localtime().</span></span><br><span class="line"><span class="comment">// ------------------------------------------------------------</span></span><br><span class="line"><span class="comment">// Potential extensions (exercise for reader):</span></span><br><span class="line"><span class="comment">// - Save/load to file (JSON/CSV).</span></span><br><span class="line"><span class="comment">// - Tagging and filtering by tags.</span></span><br><span class="line"><span class="comment">// - Markdown preview rendering.</span></span><br><span class="line"><span class="comment">// - Undo/redo stack.</span></span><br><span class="line"><span class="comment">// - Encryption of notes at rest.</span></span><br><span class="line"><span class="comment">// - Import from clipboard (OS-specific).</span></span><br><span class="line"><span class="comment">// - FTS with stemming / BM25.</span></span><br><span class="line"><span class="comment">// - Colored output and paging.</span></span><br><span class="line"><span class="comment">// - Unit tests and benchmarks.</span></span><br><span class="line"><span class="comment">// - Network sync and multi-user.</span></span><br><span class="line"><span class="comment">// End of file.</span></span><br><span class="line"></span><br><span class="line"></span><br></pre></td></tr></table></figure>
-<p>模型部分先聚焦 CPNN。我们在相同特征与划分设置下尝试了 6 种 CPNN
-结构，最终选取在 Test 集上表现最好的三层版本作为报告模型。该模型是一个
-多层感知机，采用 ReLU 与适度的 Dropout，优化器为
-AdamW；训练全程遵循上面的早停与打印协议，并在结束时基于最佳 epoch 的 Val
-预测计算整体 MAE 与 0–70 各年龄的分龄
-MAE。接下来会在同一口径下补齐六个对比模型，以便形成可复现实验与对照表。</p>
-<p><img src="CPNN.png" /></p>
-]]></content>
+<search> 
+  
+  
+    
+    <entry>
+      <title>精读解析|从统一方差到分龄方差：自适应标签分布与联合优化</title>
+      <link href="/zh-blog/2025/09/17/%E7%B2%BE%E8%AF%BB%E8%A7%A3%E6%9E%90-%E4%BB%8E%E7%BB%9F%E4%B8%80%E6%96%B9%E5%B7%AE%E5%88%B0%E5%88%86%E9%BE%84%E6%96%B9%E5%B7%AE%EF%BC%9A%E8%87%AA%E9%80%82%E5%BA%94%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%E4%B8%8E%E8%81%94%E5%90%88%E4%BC%98%E5%8C%96/"/>
+      <url>/zh-blog/2025/09/17/%E7%B2%BE%E8%AF%BB%E8%A7%A3%E6%9E%90-%E4%BB%8E%E7%BB%9F%E4%B8%80%E6%96%B9%E5%B7%AE%E5%88%B0%E5%88%86%E9%BE%84%E6%96%B9%E5%B7%AE%EF%BC%9A%E8%87%AA%E9%80%82%E5%BA%94%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%E4%B8%8E%E8%81%94%E5%90%88%E4%BC%98%E5%8C%96/</url>
+      
+        <content type="html"><![CDATA[<p>本文对 Xin Geng 等人的论文《Facial Age Estimation by Adaptive LabelDistribution Learning》（2014）进行了精读，系统梳理方法框架，并给出关键数学推导。本文展示了自适应标签分布与分龄方差的定义与软标签构造的交替优化流程；拟牛顿法对更新条件概率函数参数的优化；以及实验设置与结论。</p><span id="more"></span><p><em>论文链接：<ahref="https://ieeexplore.ieee.org/document/6977477">Facial AgeEstimation by Adaptive Label Distribution Learning</a></em></p><p><em>本文前置文章链接：<ahref="https://jiashun-ye.github.io/zh-blog/2025/03/16/%E7%B2%BE%E8%AF%BB%E8%A7%A3%E6%9E%90-%E4%BB%8E%E5%8D%95%E4%B8%80%E6%A0%87%E7%AD%BE%E5%88%B0%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%EF%BC%9A%E9%9D%A2%E9%83%A8%E5%B9%B4%E9%BE%84%E4%BC%B0%E8%AE%A1%E7%9A%84%E6%96%B0%E6%96%B9%E6%B3%95/#more">精读解析|从单一标签到标签分布：面部年龄估计的新方法</a></em></p><p>人脸老化速度不恒定，儿童和老年变化快、青壮年变化慢，邻近年龄能“互借信息”的力度应随年龄段而变。固定方差的标签分布学习无法刻画这种差异，于是ALDL 让每个年龄 <span class="math inline">\(a\)</span>从数据中自适应地学得其方差 <spanclass="math inline">\(σ_α\)</span>：快段窄、慢段宽，软标签的扩散半径因龄而异，从而更精细地拟合年龄结构并提升整体与高龄稀疏段的预测表现。</p><h1 id="自适应标签分布">自适应标签分布</h1><p>传统标签分布学习为所有年龄使用同一方差，这与真实的老化节律不符：儿童与老年阶段外观变化更快，青壮年更平缓。于是同样的“邻近借用”强度不应一刀切。<strong>自适应标签分布（AdaptiveLabel Distribution）</strong>据此引入分龄方差：对每个年龄<spanclass="math inline">\(\alpha\)</span>单独学习其标签分布宽度，使快速变化的年龄段分布更尖锐、缓慢变化的年龄段更平滑。令<spanclass="math inline">\(\mathcal{Y}=\{y_1,\dots,y_c\}\)</span>，样本<spanclass="math inline">\(x\)</span>的真实年龄为<spanclass="math inline">\(\alpha\)</span>，以离散高斯刻画其软标签： <spanclass="math display">\[d_{y,x}(\sigma_\alpha)\;=\;\frac{\exp\!\big(-\tfrac{(y-\alpha)^2}{2\sigma_\alpha^2}\big)}{\sum_{y&#39;\in\mathcal{Y}}\exp\!\big(-\tfrac{(y&#39;-\alpha)^2}{2\sigma_\alpha^2}\big)}\,,\]</span> 其中<spanclass="math inline">\(\sigma_\alpha\)</span>是年龄<spanclass="math inline">\(\alpha\)</span>的分布宽度（分龄方差）。</p><h2 id="分龄方差估计与软标签重构">分龄方差估计与软标签重构</h2><p>在建模策略上，整套方法以改进的交替迭代贯穿始终：一开始用统一初始方差<spanclass="math inline">\(\sigma_0\)</span>把训练集从单标签转换为软标签，然后按IIS 的方式更新条件概率参数<spanclass="math inline">\(\theta\)</span>；接着用当前模型挑出可靠样本（例如其绝对误差<spanclass="math inline">\(e_i=\lvert\alpha_i-\hat\alpha_i\rvert\)</span>不超过当轮训练<spanclass="math inline">\(\mathrm{MAE}\)</span>），按真实年龄分组，仅用属于年龄<spanclass="math inline">\(\alpha\)</span>的可靠样本来更新该年龄的方差<spanclass="math inline">\(\sigma_\alpha\)</span>；如此“学<spanclass="math inline">\(\theta\)</span>—调<spanclass="math inline">\(\sigma\)</span>—重构软标签”往复进行，直至误差收敛。形式化地，给定第<spanclass="math inline">\(k\!-\!1\)</span>轮的软标签<spanclass="math inline">\(D_i^{(k-1)}=\big(d_{y,x_i}^{(k-1)}\big)_{y\in\mathcal{Y}}\)</span>，先做与普通标签分布学习一致的<spanclass="math inline">\(\theta\)</span>更新： <spanclass="math display">\[\theta^{(k)} \;=\; \arg\max_{\theta}\;\sum_i\sum_{y\in\mathcal{Y}}d_{y,x_i}^{(k-1)}\,\log p(y\mid x_i;\theta),\qquadp(y\mid x;\theta)\;=\;\frac{\exp\!\big(\langle\theta_y,\,g(x)\rangle\big)}{\sum_{y&#39;}\exp\!\big(\langle\theta_{y&#39;},\,g(x)\rangle\big)}.\]</span> 用<spanclass="math inline">\(\theta^{(k)}\)</span>得到点预测<spanclass="math inline">\(\hat\alpha_i=\arg\max_y p(y\midx_i;\theta^{(k)})\)</span>并筛出可靠样本，然后对每个年龄<spanclass="math inline">\(\alpha\)</span>在其可靠集合<spanclass="math inline">\(I_\alpha\)</span>上，最小化模板高斯与模型分布的<spanclass="math inline">\(\mathrm{KL}\)</span>以更新方差： <spanclass="math display">\[\sigma_\alpha^{(k)} \;=\; \arg\min_{\sigma&gt;0}\;\sum_{m\inI_\alpha}\sum_{y\in\mathcal{Y}}d_{y,\alpha}(\sigma)\,\log\frac{d_{y,\alpha}(\sigma)}{\,p(y\midx_m;\theta^{(k)})\,},\qquadd_{y,\alpha}(\sigma)\;\propto\;\exp\!\big(-\tfrac{(y-\alpha)^2}{2\sigma^2}\big).\]</span>为便于数值实现，可利用对数障碍函数把方差大于0的限制问题转化为无约束问题，就能把上式写成一维光滑目标<spanclass="math inline">\(F_\alpha(\sigma)\)</span>并用线搜索或（拟）牛顿法求其极小点；其梯度可由<spanclass="math inline">\(q_y(\sigma)=d_{y,\alpha}(\sigma)\)</span>的对数导数给出：<span class="math display">\[\frac{\mathrm{d}F_\alpha}{\mathrm{d}\sigma}\;=\;\sum_{y\in\mathcal{Y}} \Big(\sum_{m\in I_\alpha}\big[\logq_y(\sigma)-\log p(y\midx_m;\theta^{(k)})+1\big]\Big)\,\frac{\mathrm{d}q_y(\sigma)}{\mathrm{d}\sigma}\]</span></p><p><span class="math display">\[\frac{\mathrm{d}q_y(\sigma)}{\mathrm{d}\sigma}=q_y(\sigma)\Big(\frac{(y-\alpha)^2-\mathbb{E}_{q(\sigma)}[(Y-\alpha)^2]}{\sigma^3}\Big),\]</span> 其中<spanclass="math inline">\(\mathbb{E}_{q(\sigma)}[(Y-\alpha)^2]=\sum_{y}q_y(\sigma)\,(y-\alpha)^2\)</span>。更新得到<spanclass="math inline">\(\{\sigma_\alpha^{(k)}\}\)</span>后，将其回填到所有样本以重构软标签<span class="math display">\[d_{y,x_i}^{(k)}\;=\;\frac{\exp\!\big(-\tfrac{(y-\alpha_i)^2}{2(\sigma_{\alpha_i}^{(k)})^2}\big)}{\sum_{y&#39;}\exp\!\big(-\tfrac{(y&#39;-\alpha_i)^2}{2(\sigma_{\alpha_i}^{(k)})^2}\big)}\,,\]</span> 并进入下一轮迭代；当相邻两轮的<spanclass="math inline">\(\mathrm{MAE}\)</span>改善小于阈值<spanclass="math inline">\(\varepsilon\)</span>时停止。这样，<spanclass="math inline">\(\theta\)</span>的更新完全沿用普通标签分布学习的最大似然形式，而<spanclass="math inline">\(\sigma\)</span>的更新则把“分龄应借多少邻近信息”交由数据自适应地决定。ALDL算法流程图如下所示。</p><p><img src="ALDL.png" /></p><h2 id="拟牛顿驱动的参数学习">拟牛顿驱动的参数学习</h2><p>条件概率函数的训练目标保持不变，仍以最小化分布级负对数似然为准。将“加权对数似然最大化”改写为负目标<span class="math display">\[T(\theta)\;=\;\sum_{i}\log\!\sum_{j}\exp\!\Big(\sum_{r}\theta_{y_j,r}\,x_i^{(r)}\Big)\;-\;\sum_{i,j}d^{\,k-1}_{y_j,x_i}\,\sum_{r}\theta_{y_j,r}\,x_i^{(r)},\]</span> 其中 <span class="math display">\[p(y_j\midx_i;\theta)\;=\;\frac{\exp\!\big(\sum_{r}\theta_{y_j,r}\,x_i^{(r)}\big)}{\sum_{j&#39;}\exp\!\big(\sum_{r}\theta_{y_{j&#39;},r}\,x_i^{(r)}\big)}.\]</span> 梯度写作 <span class="math display">\[\frac{\partial T(\theta)}{\partial \theta_{y_j,r}}\;=\;\sum_{i}p(y_j\mid x_i;\theta)\,x_i^{(r)}\;-\;\sum_{i}d^{\,k-1}_{y_j,x_i}\,x_i^{(r)}.\]</span></p><p>在每一轮外层交替的第 <span class="math inline">\(k\)</span> 轮中，用BFGS-ALDL 替代 IIS 进行内层优化：以上一轮解热启动 <spanclass="math inline">\(\theta_{k,0}=\theta^{(k-1)}\)</span>，设初始近似逆海森矩阵<span class="math inline">\(B_0=I\)</span>。在第 <spanclass="math inline">\(l\)</span> 次内迭代，方向取 <spanclass="math display">\[s_l \;=\; -\,B_{l-1}\,\nabla T(\theta_{k,l-1}),\]</span> 通过满足强 Wolfe 条件的线搜索得到步长 <spanclass="math inline">\(\alpha_l\)</span>，并更新 <spanclass="math display">\[\theta_{k,l}\;=\;\theta_{k,l-1}\;+\;\alpha_l\,s_l.\]</span> 随后按标准 BFGS 递推近似逆海森：记 <spanclass="math display">\[y_l\;=\;\nabla T(\theta_{k,l})-\nabla T(\theta_{k,l-1}),\qquad\rho_l\;=\;\frac{1}{y_l^\top s_l},\]</span> 则 <span class="math display">\[B_l\;=\;(I-\rho_l s_l y_l^\top)\,B_{l-1}\,(I-\rho_l y_ls_l^\top)\;+\;\rho_l\,s_l s_l^\top.\]</span> 以相对目标下降或 <span class="math inline">\(\lVert\nablaT(\theta_{k,l})\rVert_\infty\)</span>达到阈值作为停止准则即可；本节的目标与上一节一致，仅将 IIS的内层求解器替换为“牛顿方向 + 强 Wolfe 线搜索 + BFGS近似逆海森”的拟牛顿方案。</p><h1 id="实验和结果分析">实验和结果分析</h1><p>论文采用两套标准数据与协议：FG-NET 用 LOPO（每次留出一人）和 MAE评估，包含 82 人共 1002 张、年龄 0–69；MORPH（Album II）用 10折交叉验证和 MAE±std，年龄约 16–77。特征维度统一为 200，其中 FG-NET 使用Apearance Model 抽取形状+纹理联合特征并截取得到 200 维，MORPH 使用BIF，经 MFA 降到 200维以保持可比性。对比方法分为两条轴：是否自适应与求解器类型。固定方差的标签分布学习（LDL）包括IIS-LDL 与 BFGS-LDL；自适应方差的 ALDL 包括 IIS-ALDL 与BFGS-ALDL。软标签形状做消融：Gaussian、Triangle 以及退化的Single（相当于不扩散的单标签）。</p><p>总体上，自适应方差显著降低MAE，尤其在高龄样本稀疏的年龄段优势更明显（ALDL 优于LDL）；在相同设置下，用拟牛顿替代 IIS的内层优化带来更快收敛与更低误差，BFGS-ALDL 通常在四类组合中同时取得最低MAE与最短训练时间，且主要收益集中在外层交替的前几轮。就分布形状而言，Gaussian一般略优于 Triangle，Single明显落后；这与“相邻年龄可借用但不应过度稀释”的直觉一致，自适应学习得到的分龄方差随年龄而变，呈“快段窄、慢段宽”的趋势，从机制上解释了性能提升。</p>]]></content>
+      
+      
       <categories>
-        <category>代码复现</category>
+          
+          <category> 精读解析 </category>
+          
       </categories>
-      <tags>
-        <tag>标签分布学习</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>精读解析|从单一标签到标签分布：面部年龄估计的新方法</title>
-    <url>/zh-blog/2025/03/16/%E7%B2%BE%E8%AF%BB%E8%A7%A3%E6%9E%90-%E4%BB%8E%E5%8D%95%E4%B8%80%E6%A0%87%E7%AD%BE%E5%88%B0%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%EF%BC%9A%E9%9D%A2%E9%83%A8%E5%B9%B4%E9%BE%84%E4%BC%B0%E8%AE%A1%E7%9A%84%E6%96%B0%E6%96%B9%E6%B3%95/</url>
-    <content><![CDATA[<p>本文对Xin Geng等人的论文《Facial Age Estimation by Learning from
-Label
-Distributions》（2011）进行了精读，系统梳理其研究框架，并详细推导了其中的关键数学模型。精读过程包括明确标签分布的定义，分析以KL散度为目标的标签分布学习模型，深入推导了基于最大熵模型的条件概率函数及其优化算法IIS-LLD，最后总结了论文的实验设计与结果。</p>
-<span id="more"></span>
-<p><em>论文链接：<a
-href="https://cdn.aaai.org/ojs/7657/7657-13-11187-1-2-20201228.pdf">Facial
-Age Estimation by Learning from Label Distributions</a></em></p>
-<p>面部年龄估计面临数据稀疏性挑战（如高龄段样本不足）。受到年龄变化具有连续性（相邻年龄特征相似）启发，Xin
-Geng提出<em>标签分布学习</em>框架：将单一年龄标签扩展为覆盖邻近年龄的分布，通过共享年龄特征缓解数据不足，显著提升模型泛化能力，尤其是高龄的准确度。</p>
-<h1 id="定义标签分布">定义标签分布</h1>
-<p>标签分布是单标签和多标签的一个拓广，并且标签分布的含义和概率或者模糊分类不同，不过在数学结构上与概率高度相似。标签分布的核心概念是，每个标签都是对样本的正确描述，但描述程度不同，所有标签的组合构成对样本的完整描述。相比传统的单标签学习，这种方法能更好地反映类别之间的相关性，特别适用于年龄估计这样的连续变量任务。</p>
-<p>设<span class="math inline">\(\alpha\)</span>是原始标签，<span
-class="math inline">\(y\)</span>是一般标签，从单标签转换为标签分布需要遵循两个基本原则：</p>
-<ul>
-<li><p>原始标签的描述程度最大，即 <span
-class="math inline">\(P(\alpha)\)</span> 应该是分布中的最大值。</p></li>
-<li><p>距离原始标签越远的标签，其描述程度越低，即 <span
-class="math inline">\(P(y)\)</span> 随 <span class="math inline">\(|y -
-\alpha|\)</span> 的增加而递减。</p></li>
-</ul>
-<p>论文里使用的标签分布有以下两种：</p>
-<p><img src="高斯分布和三角分布.png" /></p>
-<p><u><em>高斯分布（Gaussian
-Distribution）</em></u>，通过指数衰减方式平滑地降低相邻标签的权重，定义如下：
-<span class="math display">\[
-P(y) = \frac{1}{Z} \exp \left(-\frac{(y - \alpha)^2}{2\sigma^2} \right)
-\]</span></p>
-<p>其中，<span class="math inline">\(Z\)</span> 是归一化因子，<span
-class="math inline">\(\sigma\)</span>
-控制分布的扩展范围。高斯分布能够较好地利用相邻标签信息，确保模型对年龄变化的连续性建模。</p>
-<p><u><em>三角分布（Triangle
-Distribution）</em></u>，采用线性递减的方式，仅在一定范围内赋予相邻标签权重：
-<span class="math display">\[
-P(y) = \max \left(0, 1 - \frac{|y - \alpha|}{l} \right)
-\]</span></p>
-<p>其中，<span class="math inline">\(l\)</span>
-决定了分布的跨度。相比高斯分布，三角分布更加局部化，确保远离原始标签的标签不会对模型产生影响。</p>
-<h1 id="标签分布模型与学习方式">标签分布模型与学习方式</h1>
-<p>以下是标签分布学习的建模与优化方法的基本结构：</p>
-<p><img src="训练阶段.png" /></p>
-<p><img src="预测阶段.png" /></p>
-<h2 id="优化目标kl散度">优化目标：KL散度</h2>
-设输入空间为 $ \mathcal{X} = \mathbb{R}^d $，标签空间为 $ \mathcal{Y} = \{ y_1, y_2, \dots, y_c \} $。传统分类任务中，每个样本 $ x_i $ 仅对应一个标签，但在标签分布学习中，每个样本 $ x_i $ 关联一个 标签分布 $ P_i(y) $，表示该样本在不同标签上的分布权重。
-
-目标是学习一个条件概率分布 $ p(y|x; \theta) $，使其尽可能接近 $ P_i(y) $。采用 KL散度 作为衡量准则：
-<p><span class="math display">\[
-\theta^* = \arg\min_{\theta} \sum_i \sum_y P_i(y) \log
-\frac{P_i(y)}{p(y|x_i; \theta)}
-\]</span></p>
-<p>由于 <span class="math inline">\(P_i(y)\)</span>
-在训练样本里是常数，KL 散度最小化等价于 <em>最大化对数似然（MLE）</em>：
-<span class="math display">\[
-\theta^* = \arg\max_{\theta} \sum_i \sum_y P_i(y) \log p(y|x_i; \theta)
-\]</span>
-标签分布学习框架与传统问题在以KL散度为目标函数的情况下具有密切联系：</p>
-<ul>
-<li>在单标签分类任务中，每个样本仅有一个确定的标签，即 $ P_i(y) = \delta(y, y_i) $。目标函数退化为经典的最大似然估计目标：</li>
-</ul>
-<p><span class="math display">\[
-\theta^* = \arg\max_{\theta} \sum_i \log p(y_i | x_i; \theta)
-\]</span></p>
-<ul>
-<li>在多标签分类任务中，每个样本 $ x_i $ 关联一个标签集合 $ Y_i $，假设
-$ P_i(y) $
-均匀分布在多个标签上。目标函数变为熵权重标签分配方法，将多标签样本转化为带权重的单标签样本，并优化最大似然目标：</li>
-</ul>
-<p><span class="math display">\[
-\theta^* = \arg\max_{\theta} \sum_i \frac{1}{|Y_i|} \sum_{y \in Y_i}
-\log p(y | x_i; \theta)
-\]</span></p>
-<h2 id="条件概率形式最大熵模型">条件概率形式：最大熵模型</h2>
-<h3 id="最大熵模型">最大熵模型</h3>
-<p>确定了条件概率函数的形式，才能进行参数的调整实现KL散度的优化。论文采用了最大熵模型得到条件概率函数，该模型也是一个优化问题。目标函数是最大化熵，即在符合约束条件的前提下，使得条件分布 $ p(y|x; \theta) $ 尽可能均匀，包含最多的信息，避免引入额外的假设，从而提高模型的泛化能力。
-$$
-\max_{p(y|x; \theta)}  \sum_{x,y} \tilde{p}(x) p(y|x; \theta) \log p(y|x; \theta)
-$$
-
-其中，$p(y|x; \theta)$为给定输入 $ x $ 的条件概率分布，是需要优化的目标分布； $ \tilde{p}(x,y) $是经验联合分布，由训练数据估计得到；  $ \tilde{p}(x) $是经验边际分布，即 $ \tilde{p}(x) = \sum_y \tilde{p}(x,y) $； $ f_k(x,y) $为特征函数，表示输入 $ x $ 和类别 $ y $ 之间的某种特征； $ \theta $为模型参数，决定了条件概率分布的形状。</p>
-<p>最大熵模型有两个约束条件：</p>
-<ul>
-<li>特征函数的期望值约束，要求模型的特征函数期望值与训练数据保持一致：</li>
-</ul>
-<p><span class="math display">\[
-\sum_{x,y} \tilde{p}(x,y) f_k(x,y) = \sum_{x,y} \tilde{p}(x) p(y|x;
-\theta) f_k(x,y), \quad \forall k.
-\]</span></p>
-<ul>
-<li>概率归一化约束，确保 $ p(y|x; ) $ 是一个合法的概率分布：</li>
-</ul>
-<p><span class="math display">\[
-\sum_y p(y|x; \theta) = 1, \quad \forall x.
-\]</span>
-<em>特征函数会让人觉得很突兀，可以这样理解：如果特征函数表示图片中面部的皱纹数量，那么训练出的模型在期望意义上会在皱纹数量上尽可能贴合训练样本。论文里特征函数由特征提取器提供，它是一个黑盒，虽然无法直接解释其数值，但一个优秀的特征提取器会输出与目标（如年龄预测）高度相关的特征，因此这个约束可以让模型在这些预测相关的特征上进行最优拟合。</em></p>
-<p>这个优化问题有一个解析解： <span class="math display">\[
-p(y|x; \theta) = \frac{1}{Z} \exp\left( \sum_k \theta_k f_k(x,y)
-\right),
-\]</span></p>
-<p>其中</p>
-<p><span class="math display">\[
-Z = \sum_y \exp\left( \sum_k \theta_k f_k(x,y) \right).
-\]</span></p>
-<h3 id="解析解理论推导">解析解理论推导</h3>
-<p>最大熵模型的优化目标是最大化条件熵：</p>
-<p><span class="math display">\[
-H(P) = - \sum_{x,y} \tilde{P}(x) P(y|x) \log P(y|x)
-\]</span></p>
-<p>同时满足以下约束条件：</p>
-<ul>
-<li>经验期望约束：</li>
-</ul>
-<p><span class="math display">\[
-E_P(f_i) = E_{\tilde{P}}(f_i), \quad i=1,2,\dots,n
-\]</span></p>
-<ul>
-<li>概率归一化条件：</li>
-</ul>
-<p><span class="math display">\[
-\sum_y P(y|x) = 1
-\]</span></p>
-<p>为此，引入拉格朗日乘子 <span class="math inline">\(w_0, w_1, \dots,
-w_n\)</span>，构造拉格朗日函数：</p>
-<p><span class="math display">\[
-L(P,w) = -H(P) + w_0 \left( 1 - \sum_y P(y|x) \right) + \sum_{i=1}^{n}
-w_i \left( E_{\tilde{P}}(f_i) - E_P(f_i) \right)
-\]</span></p>
-<p>将其展开为具体形式：</p>
-<p><span class="math display">\[
-L(P, w) = \sum_{x,y} \tilde{P}(x) P(y|x) \log P(y|x) + w_0 \left( 1 -
-\sum_y P(y|x) \right)
-\]</span></p>
-<p><span class="math display">\[
-+ \sum_{i=1}^{n} w_i \left( \sum_{x,y} \tilde{P}(x,y) f_i(x,y) -
-\sum_{x,y} \tilde{P}(x) P(y|x) f_i(x,y) \right)
-\]</span></p>
-<p>对 <span class="math inline">\(P(y|x)\)</span> 求偏导数：</p>
-<p><span class="math display">\[
-\frac{\partial L(P,w)}{\partial P(y|x)} = \tilde{P}(x) \left[ \log
-P(y|x) + 1 \right] - \tilde{P}(x) \sum_{i=1}^{n} w_i f_i(x,y) - w_0
-\]</span></p>
-<p>令偏导数为零：</p>
-<p><span class="math display">\[
-\log P(y|x) + 1 = \sum_{i=1}^{n} w_i f_i(x,y) + w_0
-\]</span></p>
-<p>即：</p>
-<p><span class="math display">\[
-P(y|x) = \exp \left( \sum_{i=1}^{n} w_i f_i(x,y) + w_0 - 1 \right)
-\]</span></p>
-<p>由于 <span class="math inline">\(P(y|x)\)</span>
-需要满足归一化条件：</p>
-<p><span class="math display">\[
-\sum_y P(y|x) = 1
-\]</span></p>
-<p>我们将 <span class="math inline">\(P(y|x)\)</span> 归一化：</p>
-<p><span class="math display">\[
-\sum_y \exp \left( \sum_{i=1}^{n} w_i f_i(x,y) + w_0 - 1 \right) = 1
-\]</span></p>
-<p>定义归一化因子：</p>
-<p><span class="math display">\[
-Z(x) = \sum_y \exp \left( \sum_{i=1}^{n} w_i f_i(x,y) \right)
-\]</span></p>
-<p>则：</p>
-<p><span class="math display">\[
-\exp (w_0 - 1) = \frac{1}{Z(x)}
-\]</span></p>
-<p>代入 <span class="math inline">\(P(y|x)\)</span> 的表达式：</p>
-<p><span class="math display">\[
-P(y|x) = \frac{\exp \left( \sum_{i=1}^{n} w_i f_i(x,y) \right)}{Z(x)}
-\]</span></p>
-<p>最终得出最大熵模型的解析解：</p>
-<p><span class="math display">\[
-P(y|x) = \frac{\exp \left( \sum_{i=1}^{n} w_i f_i(x,y) \right)}{Z(x)}
-\]</span></p>
-<p>其中：</p>
-<p><span class="math display">\[
-Z(x) = \sum_y \exp \left( \sum_{i=1}^{n} w_i f_i(x,y) \right)
-\]</span></p>
-<p>这表明最大熵模型具有指数形式，即指数族分布，其中 <span
-class="math inline">\(w_i\)</span> 是待优化的参数。</p>
-<p><em>如果足够细心，你可以发现在推导的过程中，把解析解带入概率归一化条件的约束里定下了参数
-<span
-class="math inline">\(w_0\)</span>，为什么不再代入期望相等的约束条件里定下
-<span class="math inline">\(w_i\)</span>
-呢？这样还能保证满足期望相等吗？可以这样理解：如果没有特征函数期望约束，那么最终的模型在最大熵意义下是一个均匀分布，加入这个约束之后就会使一个指数型的分布函数。期望约束相当于“数据驱动的先验”，它决定了分布的形状，引导模型如何利用数据特征。它是一个“软约束”，定下了分布的形状，强制模型匹配数据的统计特性，允许一定范围的自由调整。</em></p>
-<h2 id="优化算法iis-lld">优化算法：IIS-LLD</h2>
-<h3 id="目标函数">目标函数</h3>
-<p>将得到的指数型条件概率函数代入KL散度式子得到： <span
-class="math display">\[
-T(\theta) = \sum_{i} \sum_{y} P_i(y) \log \left( \frac{1}{Z(x_i)} \exp
-\left( \sum_k \theta_{y,k} g_k(x_i) \right) \right)
-\]</span> 展开对数： <span class="math display">\[
-T(\theta) = \sum_{i} \sum_{y} P_i(y) \sum_k \theta_{y,k} g_k(x_i) -
-\sum_i \sum_{y} P_i(y) \log Z(x_i)
-\]</span></p>
-<p>由于 <span class="math inline">\(Z(x_i)\)</span> 与 <span
-class="math inline">\(y\)</span> 无关，且 <span
-class="math inline">\(P_i(y)\)</span> 对 <span
-class="math inline">\(y\)</span> 求和为 1： <span
-class="math display">\[
-\sum_{y} P_i(y) \log Z(x_i) = \log Z(x_i) \sum_y P_i(y) = \log Z(x_i)
-\]</span> 故 <span class="math display">\[
-T(\theta) = \sum_{i} \sum_{y} P_i(y) \sum_k \theta_{y,k} g_k(x_i) -
-\sum_i \log Z(x_i)
-\]</span> 展开 <span class="math inline">\(Z(x_i)\)</span> ：</p>
-<p><span class="math display">\[
-T(\theta) = \sum_{i} \sum_{y} P_i(y) \sum_k \theta_{y,k} g_k(x_i) -
-\sum_i \log \sum_y \exp \left( \sum_k \theta_{y,k} g_k(x_i) \right)
-\]</span></p>
-<h3 id="目标函数增量下界推导">目标函数增量下界推导</h3>
-<p>我们希望最大化目标函数： <span class="math display">\[
-T(\theta) = \sum_{i,y} P_i(y) \sum_k \theta_{y,k} g_k(x_i) - \sum_i \log
-Z(x_i)
-\]</span> 其中： <span class="math display">\[
-Z(x_i) = \sum_y \exp \left( \sum_k \theta_{y,k} g_k(x_i) \right)
-\]</span></p>
-<p>定义参数更新： <span class="math display">\[
-\theta^{(t+1)} = \theta^{(t)} + \Delta
-\]</span> 其中增量： <span class="math display">\[
-\delta_{y,k} = \theta_{y,k}^{(t+1)} - \theta_{y,k}^{(t)}
-\]</span></p>
-<p>增量后的归一化因子： <span class="math display">\[
-Z^*(x_i) = \sum_y \exp \left( \sum_k (\theta_{y,k} + \delta_{y,k})
-g_k(x_i) \right)
-\]</span></p>
-<p>目标函数增量： <span class="math display">\[
-T(\theta + \Delta) - T(\theta) =
-\sum_{i,y} P_i(y) \sum_k \delta_{y,k} g_k(x_i) - \sum_i \log
-\frac{Z^*(x_i)}{Z(x_i)}
-\]</span></p>
-<p>计算后一项： <span class="math display">\[
-\frac{Z^*(x_i)}{Z(x_i)} = \frac{\sum_y \exp \left( \sum_k (\theta_{y,k}
-+ \delta_{y,k}) g_k(x_i) \right)}
-{\sum_y \exp \left( \sum_k \theta_{y,k} g_k(x_i) \right)}
-\]</span></p>
-<p>提取原归一化项： <span class="math display">\[
-\frac{Z^*(x_i)}{Z(x_i)} =
-\sum_y \frac{\exp \left( \sum_k \theta_{y,k} g_k(x_i) \right)}{Z(x_i)}
-\exp \left( \sum_k \delta_{y,k} g_k(x_i) \right)
-\]</span></p>
-<p>由于： <span class="math display">\[
-p(y | x_i; \theta) = \frac{\exp \left( \sum_k \theta_{y,k} g_k(x_i)
-\right)}{Z(x_i)}
-\]</span></p>
-<p>所以： <span class="math display">\[
-\frac{Z^*(x_i)}{Z(x_i)} = \sum_y p(y | x_i; \theta) \exp \left( \sum_k
-\delta_{y,k} g_k(x_i) \right)
-\]</span></p>
-<p>使用对数不等式放缩： <span class="math display">\[
--\log x \geq 1 - x
-\]</span></p>
-<p>应用到目标函数增量： <span class="math display">\[
--\sum_i \log \sum_y p(y | x_i; \theta) \exp \left( \sum_k \delta_{y,k}
-g_k(x_i) \right)
-\geq
-\sum_i \left( 1 - \sum_y p(y | x_i; \theta) \exp \left( \sum_k
-\delta_{y,k} g_k(x_i) \right) \right)
-\]</span></p>
-<p>故 <span class="math display">\[
-T(\theta + \Delta) - T(\theta) \geq
-\sum_{i,y} P_i(y) \sum_k \delta_{y,k} g_k(x_i) + n - \sum_i \sum_y p(y |
-x_i; \theta) \exp \left( \sum_k \delta_{y,k} g_k(x_i) \right)
-\]</span></p>
-<p>下面使用 Jensen不等式 继续放缩，</p>
-<p>定义： <span class="math display">\[
-g^\#(x_i) = \sum_k |g_k(x_i)|
-\]</span></p>
-<p>由于指数函数是凸函数，根据 Jensen不等式，令 $ s(g_k(x_i)) $ 为 $
-g_k(x_i) $ 的符号函数： <span class="math display">\[
-\sum_k \frac{|g_k(x_i)|}{g^\#(x_i)} \exp \left( \delta_{y,k} s(g_k(x_i))
-g^\#(x_i) \right)
-\geq
-\exp \left( \sum_k \frac{|g_k(x_i)|}{g^\#(x_i)} \delta_{y,k} g^\#(x_i)
-\right)
-\]</span></p>
-<p>即 <span class="math display">\[
-\sum_k \frac{|g_k(x_i)|}{g^\#(x_i)} \exp \left( \delta_{y,k} s(g_k(x_i))
-g^\#(x_i) \right)
-\geq
-\exp \left( \sum_k \delta_{y,k} |g_k(x_i)| \right)
-\]</span></p>
-<p>调换方向： <span class="math display">\[
--\exp \left( \sum_k \delta_{y,k} |g_k(x_i)| \right)
-\geq
--\sum_k \frac{|g_k(x_i)|}{g^\#(x_i)} \exp \left( \delta_{y,k}
-s(g_k(x_i)) g^\#(x_i) \right)
-\]</span></p>
-<p>代入前面的下界： <span class="math display">\[
-T(\theta + \Delta) - T(\theta) \geq
-\sum_{i,y} P_i(y) \sum_k \delta_{y,k} g_k(x_i) + n - \sum_{i, y} p(y |
-x_i; \theta)\sum_k \frac{|g_k(x_i)|}{g^\#(x_i)} \exp \left( \delta_{y,k}
-s(g_k(x_i)) g^\#(x_i) \right)
-\]</span></p>
-<p>我们将右侧表达式定义为： <span class="math display">\[
-\mathcal{A}(\Delta | \theta) =
-\sum_{i,y} P_i(y) \sum_k \delta_{y,k} g_k(x_i) + n - \sum_{i, y} p(y |
-x_i; \theta)\sum_k \frac{|g_k(x_i)|}{g^\#(x_i)} \exp \left( \delta_{y,k}
-s(g_k(x_i)) g^\#(x_i) \right)
-\]</span></p>
-<p>即 <span class="math display">\[
-T(\theta + \Delta) - T(\theta) \geq \mathcal{A}(\Delta | \theta)
-\]</span></p>
-<h3 id="iis-lld算法">IIS-LLD算法</h3>
-<p><span class="math inline">\(T(\theta)\)</span> 通过 Jensen 不等式
-的放缩，使得<span class="math inline">\(\mathcal{A}(\Delta |
-\theta)\)</span> 各个维度变得相互独立，可以逐个维度独立优化。</p>
-<p>优化过程即对 <span class="math inline">\(\mathcal{A}(\Delta |
-\theta)\)</span> 求导，并令梯度为 0，得到每个维度的增量：</p>
-<p><span class="math display">\[
-\frac{\partial \mathcal{A}(\Delta | \theta)}{\partial \delta_{y,k}} =
-\sum_{i} P_i(y) g_k(x_i) - \sum_{i} p(y | x_i; \theta) g_k(x_i)
-\exp(\delta_{y,k} s(g_k(x_i)) g^\#(x_i)) = 0.
-\]</span></p>
-<p>此方程可以通过数值方法（如 Gauss-Newton 方法）逐个求解每个维度的增量
-<span
-class="math inline">\(\delta_{y,k}\)</span>，最终完成迭代更新。算法流程如下：</p>
-<p><img src="IIS-LLD算法流程图.png" /></p>
-<p><em>经典的IIS算法要求特征函数非负，论文里为了保证标签分布模型的灵活性，取消了这一限制，所以命名为IIS-LLD算法。从算法上来看也能得到最后的解，不过从数值方法的角度来看，这会带来不稳定的风险。</em></p>
-<h1 id="实验和结果分析">实验和结果分析</h1>
-<p>实验使用了 <em>FG-NET Aging Database</em>，该数据集包含1002
-张面部图像，来自82 名受试者，年龄范围在0-69
-岁之间。每名受试者的照片数量在6-18
-张之间，数据集中包含不同的光照、表情和姿态变化。由于年龄较大的样本较少，研究者采用了
-<em>Leave-One-Person-Out（LOPO）交叉验证</em>，即每次选取一名受试者的所有照片作为测试集，其余受试者的照片作为训练集，重复82
-轮计算最终结果。实验使用 <em>Mean Absolute Error（MAE）</em>
-作为误差度量，计算预测年龄与真实年龄之间的平均绝对误差。</p>
-<p>特征提取方法基于 <em>外观模型（Appearance
-Model）</em>。该模型首先模型检测人脸关键点，通过
-<em>PCA（主成分分析）</em>
-对关键点坐标进行降维；然后对人脸图像进行标准化，使其符合统一的形状；再对标准化后的灰度图进行PCA
-降维，提取纹理特征；最终形状和纹理特征被结合成一个特征向量。在 PCA
-降维过程中，研究者选择保留95% 的数据变异性，截取了前200个主成分。</p>
-<p>以下是实验中用到的方法和对应的关键参数：</p>
-
-
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>三线表</title>
-    <style>
-        table {
-            width: 80%;
-            margin: 20px auto;
-            border-collapse: collapse;
-        }
-
-        table caption {
-            font-size: 1.5em;
-            margin-bottom: 10px;
-        }
+      
+      
+        <tags>
+            
+            <tag> 标签分布学习 </tag>
+            
+        </tags>
+      
+    </entry>
     
-        table thead > tr > th {
-            border-top: 3px solid #000;
-            border-bottom: 2px solid #000;
-            padding: 4px;
-            text-align: center;
-            background-color: #f4f4f4;
-        }
     
-        table tbody > tr > td {
-            padding: 2px;
-            text-align: center;
-            border-bottom: 1px solid #ddd;
-        }
     
-        table tbody > tr:last-child {
-            border-bottom: 3px solid #000;
-        }
-    
-        table td:last-child {
-            border-right: none;
-        }
-    
-        table {
-            border: none;
-        }
-    </style>
-</head>
-<body>
-    <table>
-        <thead>
-            <tr>
-                <th>方法</th>
-                <th>关键参数</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr><td>IIS-LLD (Gaussian)</td><td>高斯分布，标准差 \( \sigma = 1 \)</td></tr>
-            <tr><td>IIS-LLD (Triangle)</td><td>三角分布，底边长度 \( l = 6 \)</td></tr>
-            <tr><td>IIS-LLD (Single)</td><td>传统单标签，仅用真实年龄</td></tr>
-            <tr><td>AGES</td><td>老化模式子空间维度 = 20</td></tr>
-            <tr><td>WAS</td><td>不需要设置参数</td></tr>
-            <tr><td>AAS</td><td>误差阈值 = 3，年龄段 = (0-9, 10-19, 20-39, 40-69)</td></tr>
-            <tr><td>KNN</td><td>邻近样本数 \( K = 30 \)</td></tr>
-            <tr><td>BP (神经网络)</td><td>隐藏层神经元 = 100</td></tr>
-            <tr><td>C4.5 (决策树)</td><td>使用 J4.8 版本，默认参数</td></tr>
-            <tr><td>SVM</td><td>核函数：RBF，核宽度 = 1</td></tr>
-            <tr><td>HumanA (灰度图像)</td><td>仅展示去除背景的灰度脸部图像</td></tr>
-            <tr><td>HumanB (彩色图像)</td><td>展示完整的彩色图像，包括头发、服饰、背景等</td></tr>
-        </tbody>
-    </table>
-</body>
-</html>
-
-
-<p>实验结果如下所示，表现优于HumanA使用紫色柱形，优于HumanB加上竖直虚线：</p>
-<p><img src="Age_Estimation_Results.png" /></p>
-<p><em>从图中可以看出来，即使没有使用标签分布，IIS-LLD算法表现已经十分优秀，这得益于最大熵模型的良好性质，标签分布达到了锦上添花的效果，使得算法性能超过HumanB。高斯分布覆盖了所有年龄，而三角分布只覆盖了临近的年龄，单标签只覆盖本身的年龄，它们的表现优度依次递减。</em></p>
-<p>论文还对两种标签分布的参数<span
-class="math inline">\(\sigma\)</span>、<span
-class="math inline">\(l\)</span>进行了调整，测试对应的MAE，结果如下：</p>
-<p><img src="deviation.png" /></p>
-<p><em>参数越大，意味着分布约分散。两个分布的参数为0时，都退化为单标签。在临近标签对真实标签做贡献但又不至于“喧宾夺主”间需要保持平衡，才能达到最好的效果。</em></p>
-<p>接下来是对三种IIS-LLD算法和baseline中表现最好的AGES模型在各个年龄段内的MAE做可视化，n表示该年龄段内的样本数量。</p>
-<p><img src="MAE_in_Different_Age_Ranges.png" /></p>
-<p><em>在数据丰富低年龄段内，IIS-LLD模型稍逊于专门做面部年龄估计的AGES模型；而在数据稀疏的高年龄段内IIS-LLD模型明显优于AGES模型。这验证了论文用标签分布弥补数据不足缺陷的想法。</em></p>
-<p>作者最后给出了标签分布存在应用价值的三个场景，帮助处理标签不确定性和数据稀缺问题：实例初始标签即为类分布；类之间存在强相关性；不同来源的标签存在争议。</p>
-]]></content>
+    <entry>
+      <title>代码复现|朴素标签分布学习实践</title>
+      <link href="/zh-blog/2025/09/12/%E4%BB%A3%E7%A0%81%E5%A4%8D%E7%8E%B0-%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%E5%AD%A6%E4%B9%A0%E7%9A%84%E6%9C%B4%E7%B4%A0%E5%AE%9E%E8%B7%B5/"/>
+      <url>/zh-blog/2025/09/12/%E4%BB%A3%E7%A0%81%E5%A4%8D%E7%8E%B0-%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%E5%AD%A6%E4%B9%A0%E7%9A%84%E6%9C%B4%E7%B4%A0%E5%AE%9E%E8%B7%B5/</url>
+      
+        <content type="html"><![CDATA[<p>本文对Xin Geng等人的论文《Facial Age Estimation by Learning fromLabel Distributions》（2011）及《Facial Age Estimation by Learning fromLabel Distributions》（2013）进行了复现。</p><span id="more"></span><p><em>本文前置文章链接：</em></p><p><em><ahref="https://jiashun-ye.github.io/zh-blog/2025/03/16/%E7%B2%BE%E8%AF%BB%E8%A7%A3%E6%9E%90-%E4%BB%8E%E5%8D%95%E4%B8%80%E6%A0%87%E7%AD%BE%E5%88%B0%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%EF%BC%9A%E9%9D%A2%E9%83%A8%E5%B9%B4%E9%BE%84%E4%BC%B0%E8%AE%A1%E7%9A%84%E6%96%B0%E6%96%B9%E6%B3%95/">精读解析|从单一标签到标签分布：面部年龄估计的新方法</a></em></p><p><em><ahref="https://jiashun-ye.github.io/zh-blog/2025/09/11/%E7%B2%BE%E8%AF%BB%E8%A7%A3%E6%9E%90-%E7%AB%AF%E5%88%B0%E7%AB%AF%E7%9A%84%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%E5%AD%A6%E4%B9%A0%EF%BC%9A%E7%AA%81%E7%A0%B4%E5%87%BD%E6%95%B0%E5%BD%A2%E7%8A%B6%E9%99%90%E5%88%B6/#more">精读解析|端到端的标签分布学习：突破函数形状限制</a></em></p><h1 id="扩展实验">扩展实验</h1><p>这次复现的目标是用统一的数据与特征管线，把条件概率神经网络（CPNN）在年龄估计上的流程跑通：先把图片全部转换为定长向量，再用标签分布学习（LabelDistribution Learning）训练 CPNN，最终按既定协议在 Val上打分，并为后续的六个对比模型铺好评测口径。</p><p>数据来自 MegaAge-Asian（<ahref="https://aistudio.baidu.com/datasetdetail/45324">AI Studio数据集</a>）。这个数据集面向亚洲人脸年龄估计，提供了离散年龄标签及其对应的年龄后验分布文件，适合做分布级监督。我们只使用其中与年龄估计相关的部分，不涉及性别等其他属性；数据下载后按官方组织方式读取，再结合后续特征抽取与划分流程进行清洗与重排。</p><p><img src="MegaAge_Asian.png" /></p><p>特征提取器使用 MiVOLO（<ahref="https://github.com/WildChlamydia/MiVOLO">GitHub</a>，<ahref="https://arxiv.org/abs/2307.04616">论文</a>）。MiVOLO是一个面向年龄/性别估计的多输入Transformer，我们在本复现中将其作为纯特征抽取器，把每张图像转为固定长度的数值向量；具体实现中采用人脸与人体分支拼接的设置，得到768 维embedding，并为所有样本重新编号。检测不到人脸或人脸区域过小的极少量样本会被直接剔除，以免引入噪声与异常分布。</p><p><img src="age_distribution_overall.png" /></p><p>数据划分采用 7:2:1 的固定比例：Train 用于参数学习，Test用于选超参数与早停，Val 仅用于最终打分与汇总。在这一协议下，Test不参与对外报告，从而尽量避免信息泄漏；Val作为“盲评集合”更贴近真实泛化表现。训练日志在每个 epoch实时打印验证集的期望年龄 MAE 与 CS5，早停以 Test loss为监控量，<code>patience=5</code>。</p><p>为了把单一年龄标签转化为可利用相邻约束的软监督，我们将年龄 <spanclass="math inline">\(y\in\{0,\dots,70\}\)</span> 用标准差 <spanclass="math inline">\(\sigma=3\)</span> 的高斯核离散化为 71 维标签分布<span class="math inline">\(D_x(y)\)</span>。模型输出 <spanclass="math inline">\(\hat{p}(y\mid x)\)</span>后，以分布级交叉熵训练；评估时用最大可能年龄 <spanclass="math inline">\(\mathbb{E}[y]=\sum_y y\,\hat{p}(y\midx)\)</span>作为实数预测，与真值计算 MAE，并在 Val 上做最终汇总。</p><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br><span class="line">210</span><br><span class="line">211</span><br><span class="line">212</span><br><span class="line">213</span><br><span class="line">214</span><br><span class="line">215</span><br><span class="line">216</span><br><span class="line">217</span><br><span class="line">218</span><br><span class="line">219</span><br><span class="line">220</span><br><span class="line">221</span><br><span class="line">222</span><br><span class="line">223</span><br><span class="line">224</span><br><span class="line">225</span><br><span class="line">226</span><br><span class="line">227</span><br><span class="line">228</span><br><span class="line">229</span><br><span class="line">230</span><br><span class="line">231</span><br><span class="line">232</span><br><span class="line">233</span><br><span class="line">234</span><br><span class="line">235</span><br><span class="line">236</span><br><span class="line">237</span><br><span class="line">238</span><br><span class="line">239</span><br><span class="line">240</span><br><span class="line">241</span><br><span class="line">242</span><br><span class="line">243</span><br><span class="line">244</span><br><span class="line">245</span><br><span class="line">246</span><br><span class="line">247</span><br><span class="line">248</span><br><span class="line">249</span><br><span class="line">250</span><br><span class="line">251</span><br><span class="line">252</span><br><span class="line">253</span><br><span class="line">254</span><br><span class="line">255</span><br><span class="line">256</span><br><span class="line">257</span><br><span class="line">258</span><br><span class="line">259</span><br><span class="line">260</span><br><span class="line">261</span><br><span class="line">262</span><br><span class="line">263</span><br><span class="line">264</span><br><span class="line">265</span><br><span class="line">266</span><br><span class="line">267</span><br><span class="line">268</span><br><span class="line">269</span><br><span class="line">270</span><br><span class="line">271</span><br><span class="line">272</span><br><span class="line">273</span><br><span class="line">274</span><br><span class="line">275</span><br><span class="line">276</span><br><span class="line">277</span><br><span class="line">278</span><br><span class="line">279</span><br><span class="line">280</span><br><span class="line">281</span><br><span class="line">282</span><br><span class="line">283</span><br><span class="line">284</span><br><span class="line">285</span><br><span class="line">286</span><br><span class="line">287</span><br><span class="line">288</span><br><span class="line">289</span><br><span class="line">290</span><br><span class="line">291</span><br><span class="line">292</span><br><span class="line">293</span><br><span class="line">294</span><br><span class="line">295</span><br><span class="line">296</span><br><span class="line">297</span><br><span class="line">298</span><br><span class="line">299</span><br><span class="line">300</span><br><span class="line">301</span><br><span class="line">302</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;bits/stdc++.h&gt;</span></span></span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> std;</span><br><span class="line"></span><br><span class="line"><span class="keyword">struct</span> <span class="title class_">Note</span> &#123;</span><br><span class="line">    <span class="type">int</span> id;</span><br><span class="line">    string title;</span><br><span class="line">    string body;</span><br><span class="line">    <span class="type">time_t</span> created;</span><br><span class="line">    <span class="type">time_t</span> updated;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function">string <span class="title">time_str</span><span class="params">(<span class="type">time_t</span> t)</span> </span>&#123;</span><br><span class="line">    tm *lt = <span class="built_in">localtime</span>(&amp;t);</span><br><span class="line">    <span class="type">char</span> buf[<span class="number">64</span>];</span><br><span class="line">    <span class="built_in">strftime</span>(buf, <span class="built_in">sizeof</span>(buf), <span class="string">&quot;%Y-%m-%d %H:%M:%S&quot;</span>, lt);</span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">string</span>(buf);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function">vector&lt;string&gt; <span class="title">split_words</span><span class="params">(<span class="type">const</span> string&amp; s)</span> </span>&#123;</span><br><span class="line">    vector&lt;string&gt; out; string cur;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">char</span> c: s) &#123;</span><br><span class="line">        <span class="keyword">if</span> (<span class="built_in">isalnum</span>((<span class="type">unsigned</span> <span class="type">char</span>)c) || c==<span class="string">&#x27;_&#x27;</span>) cur+=<span class="built_in">tolower</span>(c);</span><br><span class="line">        <span class="keyword">else</span> <span class="keyword">if</span> (!cur.<span class="built_in">empty</span>()) &#123; out.<span class="built_in">push_back</span>(cur); cur.<span class="built_in">clear</span>(); &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (!cur.<span class="built_in">empty</span>()) out.<span class="built_in">push_back</span>(cur);</span><br><span class="line">    <span class="keyword">return</span> out;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function">string <span class="title">trim</span><span class="params">(<span class="type">const</span> string&amp; s)</span> </span>&#123;</span><br><span class="line">    <span class="type">size_t</span> a = s.<span class="built_in">find_first_not_of</span>(<span class="string">&quot; \t\r\n&quot;</span>);</span><br><span class="line">    <span class="keyword">if</span> (a==string::npos) <span class="keyword">return</span> <span class="string">&quot;&quot;</span>;</span><br><span class="line">    <span class="type">size_t</span> b = s.<span class="built_in">find_last_not_of</span>(<span class="string">&quot; \t\r\n&quot;</span>);</span><br><span class="line">    <span class="keyword">return</span> s.<span class="built_in">substr</span>(a,b-a<span class="number">+1</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">struct</span> <span class="title class_">Notebook</span> &#123;</span><br><span class="line">    vector&lt;Note&gt; notes;</span><br><span class="line">    <span class="type">int</span> next_id = <span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">    <span class="function">Note* <span class="title">find_by_id</span><span class="params">(<span class="type">int</span> id)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">auto</span>&amp; n: notes) <span class="keyword">if</span> (n.id==id) <span class="keyword">return</span> &amp;n;</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">nullptr</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="type">int</span> <span class="title">add</span><span class="params">(<span class="type">const</span> string&amp; title, <span class="type">const</span> string&amp; body)</span> </span>&#123;</span><br><span class="line">        <span class="type">time_t</span> now = <span class="built_in">time</span>(<span class="literal">nullptr</span>);</span><br><span class="line">        Note n&#123;next_id++, title, body, now, now&#125;;</span><br><span class="line">        notes.<span class="built_in">push_back</span>(<span class="built_in">move</span>(n));</span><br><span class="line">        <span class="keyword">return</span> notes.<span class="built_in">back</span>().id;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="type">bool</span> <span class="title">edit</span><span class="params">(<span class="type">int</span> id, <span class="type">const</span> string&amp; title, <span class="type">const</span> string&amp; body)</span> </span>&#123;</span><br><span class="line">        Note* p = <span class="built_in">find_by_id</span>(id);</span><br><span class="line">        <span class="keyword">if</span> (!p) <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">        <span class="keyword">if</span> (!title.<span class="built_in">empty</span>()) p-&gt;title = title;</span><br><span class="line">        <span class="keyword">if</span> (!body.<span class="built_in">empty</span>()) p-&gt;body = body;</span><br><span class="line">        p-&gt;updated = <span class="built_in">time</span>(<span class="literal">nullptr</span>);</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="type">bool</span> <span class="title">erase</span><span class="params">(<span class="type">int</span> id)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">auto</span> it = <span class="built_in">remove_if</span>(notes.<span class="built_in">begin</span>(), notes.<span class="built_in">end</span>(), [&amp;](<span class="type">const</span> Note&amp; n)&#123;<span class="keyword">return</span> n.id==id;&#125;);</span><br><span class="line">        <span class="keyword">if</span> (it==notes.<span class="built_in">end</span>()) <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">        notes.<span class="built_in">erase</span>(it, notes.<span class="built_in">end</span>());</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function">vector&lt;<span class="type">int</span>&gt; <span class="title">search_ids</span><span class="params">(<span class="type">const</span> string&amp; q)</span> </span>&#123;</span><br><span class="line">        string qs = <span class="built_in">trim</span>(q);</span><br><span class="line">        <span class="keyword">if</span> (qs.<span class="built_in">empty</span>()) <span class="keyword">return</span> &#123;&#125;;</span><br><span class="line">        <span class="keyword">auto</span> keys = <span class="built_in">split_words</span>(qs);</span><br><span class="line">        vector&lt;<span class="type">int</span>&gt; ids;</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">auto</span>&amp; n: notes) &#123;</span><br><span class="line">            string hay = n.title + <span class="string">&quot; &quot;</span> + n.body;</span><br><span class="line">            <span class="keyword">auto</span> words = <span class="built_in">split_words</span>(hay);</span><br><span class="line">            <span class="type">bool</span> ok=<span class="literal">true</span>;</span><br><span class="line">            <span class="keyword">for</span> (<span class="keyword">auto</span>&amp; k: keys) &#123;</span><br><span class="line">                <span class="type">bool</span> found=<span class="literal">false</span>;</span><br><span class="line">                <span class="keyword">for</span> (<span class="keyword">auto</span>&amp; w: words) <span class="keyword">if</span> (w.<span class="built_in">find</span>(k)!=string::npos) &#123; found=<span class="literal">true</span>; <span class="keyword">break</span>; &#125;</span><br><span class="line">                <span class="keyword">if</span> (!found) &#123; ok=<span class="literal">false</span>; <span class="keyword">break</span>; &#125;</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">if</span> (ok) ids.<span class="built_in">push_back</span>(n.id);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="built_in">sort</span>(ids.<span class="built_in">begin</span>(), ids.<span class="built_in">end</span>());</span><br><span class="line">        <span class="keyword">return</span> ids;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function">vector&lt;<span class="type">int</span>&gt; <span class="title">list_sorted</span><span class="params">(<span class="type">const</span> string&amp; by, <span class="type">bool</span> desc)</span> </span>&#123;</span><br><span class="line">        vector&lt;<span class="type">int</span>&gt; ids;</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">auto</span>&amp; n: notes) ids.<span class="built_in">push_back</span>(n.id);</span><br><span class="line">        <span class="keyword">auto</span> get = [&amp;](<span class="type">int</span> id)-&gt;Note&amp;&#123; <span class="keyword">return</span> *<span class="built_in">find_by_id</span>(id); &#125;;</span><br><span class="line">        <span class="keyword">if</span> (by==<span class="string">&quot;title&quot;</span>) &#123;</span><br><span class="line">            <span class="built_in">sort</span>(ids.<span class="built_in">begin</span>(), ids.<span class="built_in">end</span>(), [&amp;](<span class="type">int</span> a,<span class="type">int</span> b)&#123; <span class="keyword">return</span> desc ? <span class="built_in">get</span>(a).title&gt;<span class="built_in">get</span>(b).title : <span class="built_in">get</span>(a).title&lt;<span class="built_in">get</span>(b).title; &#125;);</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (by==<span class="string">&quot;updated&quot;</span>) &#123;</span><br><span class="line">            <span class="built_in">sort</span>(ids.<span class="built_in">begin</span>(), ids.<span class="built_in">end</span>(), [&amp;](<span class="type">int</span> a,<span class="type">int</span> b)&#123; <span class="keyword">return</span> desc ? <span class="built_in">get</span>(a).updated&gt;<span class="built_in">get</span>(b).updated : <span class="built_in">get</span>(a).updated&lt;<span class="built_in">get</span>(b).updated; &#125;);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="built_in">sort</span>(ids.<span class="built_in">begin</span>(), ids.<span class="built_in">end</span>(), [&amp;](<span class="type">int</span> a,<span class="type">int</span> b)&#123; <span class="keyword">return</span> desc ? <span class="built_in">get</span>(a).created&gt;<span class="built_in">get</span>(b).created : <span class="built_in">get</span>(a).created&lt;<span class="built_in">get</span>(b).created; &#125;);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> ids;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="type">size_t</span> <span class="title">total_words</span><span class="params">()</span> <span class="type">const</span> </span>&#123;</span><br><span class="line">        <span class="type">size_t</span> tot=<span class="number">0</span>;</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">auto</span>&amp; n: notes) tot += <span class="built_in">split_words</span>(n.body).<span class="built_in">size</span>();</span><br><span class="line">        <span class="keyword">return</span> tot;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function">string <span class="title">read_multiline</span><span class="params">(<span class="type">const</span> string&amp; prompt)</span> </span>&#123;</span><br><span class="line">    cout &lt;&lt; prompt &lt;&lt; <span class="string">&quot; (end with a single line containing just \&quot;.\&quot;)\n&quot;</span>;</span><br><span class="line">    string line, out;</span><br><span class="line">    <span class="keyword">while</span> (<span class="literal">true</span>) &#123;</span><br><span class="line">        <span class="keyword">if</span> (!<span class="built_in">getline</span>(cin, line)) <span class="keyword">break</span>;</span><br><span class="line">        <span class="keyword">if</span> (line==<span class="string">&quot;.&quot;</span>) <span class="keyword">break</span>;</span><br><span class="line">        out += line; out += <span class="string">&#x27;\n&#x27;</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> out;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">print_note</span><span class="params">(<span class="type">const</span> Note&amp; n)</span> </span>&#123;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;ID: &quot;</span> &lt;&lt; n.id &lt;&lt; <span class="string">&quot;\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;Title: &quot;</span> &lt;&lt; n.title &lt;&lt; <span class="string">&quot;\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;Created: &quot;</span> &lt;&lt; <span class="built_in">time_str</span>(n.created) &lt;&lt; <span class="string">&quot;\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;Updated: &quot;</span> &lt;&lt; <span class="built_in">time_str</span>(n.updated) &lt;&lt; <span class="string">&quot;\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;Body:\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; n.body;</span><br><span class="line">    <span class="keyword">if</span> (!n.body.<span class="built_in">empty</span>() &amp;&amp; n.body.<span class="built_in">back</span>()!=<span class="string">&#x27;\n&#x27;</span>) cout &lt;&lt; <span class="string">&#x27;\n&#x27;</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">print_help</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;Commands:\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;  add                - add a note (multiline body)\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;  addq &lt;title&gt; &lt;b&gt;   - quick add one-line body\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;  edit &lt;id&gt;          - edit title and body\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;  title &lt;id&gt; &lt;t&gt;     - edit title only\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;  body &lt;id&gt;          - edit body (multiline)\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;  del &lt;id&gt;           - delete\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;  list [by] [desc]   - list notes (by=title|created|updated)\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;  show &lt;id&gt;          - show a note\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;  find &lt;query&gt;       - search by keywords\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;  stats              - summary statistics\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;  help               - show this help\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;  exit               - quit\n&quot;</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">print_stats</span><span class="params">(<span class="type">const</span> Notebook&amp; nb)</span> </span>&#123;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;Notes: &quot;</span> &lt;&lt; nb.notes.<span class="built_in">size</span>() &lt;&lt; <span class="string">&quot;\n&quot;</span>;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;Total words: &quot;</span> &lt;&lt; nb.<span class="built_in">total_words</span>() &lt;&lt; <span class="string">&quot;\n&quot;</span>;</span><br><span class="line">    <span class="type">size_t</span> maxlen=<span class="number">0</span>; <span class="type">int</span> maxid=<span class="number">-1</span>;</span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">auto</span>&amp; n: nb.notes) &#123;</span><br><span class="line">        <span class="keyword">if</span> (n.body.<span class="built_in">size</span>()&gt;maxlen) &#123; maxlen=n.body.<span class="built_in">size</span>(); maxid=n.id; &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (maxid!=<span class="number">-1</span>) cout &lt;&lt; <span class="string">&quot;Largest note ID: &quot;</span> &lt;&lt; maxid &lt;&lt; <span class="string">&quot; (&quot;</span> &lt;&lt; maxlen &lt;&lt; <span class="string">&quot; bytes)\n&quot;</span>;</span><br><span class="line">    map&lt;string,<span class="type">int</span>&gt; by_day;</span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">auto</span>&amp; n: nb.notes) &#123;</span><br><span class="line">        tm *lt = <span class="built_in">localtime</span>(&amp;n.created);</span><br><span class="line">        <span class="type">char</span> buf[<span class="number">16</span>]; <span class="built_in">strftime</span>(buf,<span class="built_in">sizeof</span>(buf),<span class="string">&quot;%Y-%m-%d&quot;</span>,lt);</span><br><span class="line">        by_day[<span class="built_in">string</span>(buf)]++;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (!by_day.<span class="built_in">empty</span>()) &#123;</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;Created per day:\n&quot;</span>;</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">auto</span>&amp; kv: by_day) cout &lt;&lt; <span class="string">&quot;  &quot;</span> &lt;&lt; kv.first &lt;&lt; <span class="string">&quot; : &quot;</span> &lt;&lt; kv.second &lt;&lt; <span class="string">&quot;\n&quot;</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function">vector&lt;string&gt; <span class="title">tokenize</span><span class="params">(<span class="type">const</span> string&amp; line)</span> </span>&#123;</span><br><span class="line">    vector&lt;string&gt; t; string cur; <span class="type">bool</span> inq=<span class="literal">false</span>;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">size_t</span> i=<span class="number">0</span>;i&lt;line.<span class="built_in">size</span>();++i) &#123;</span><br><span class="line">        <span class="type">char</span> c=line[i];</span><br><span class="line">        <span class="keyword">if</span> (c==<span class="string">&#x27;&quot;&#x27;</span>) &#123; inq=!inq; <span class="keyword">continue</span>; &#125;</span><br><span class="line">        <span class="keyword">if</span> (<span class="built_in">isspace</span>((<span class="type">unsigned</span> <span class="type">char</span>)c) &amp;&amp; !inq) &#123; <span class="keyword">if</span>(!cur.<span class="built_in">empty</span>())&#123;t.<span class="built_in">push_back</span>(cur);cur.<span class="built_in">clear</span>();&#125; &#125;</span><br><span class="line">        <span class="keyword">else</span> cur.<span class="built_in">push_back</span>(c);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (!cur.<span class="built_in">empty</span>()) t.<span class="built_in">push_back</span>(cur);</span><br><span class="line">    <span class="keyword">return</span> t;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">to_int</span><span class="params">(<span class="type">const</span> string&amp; s)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">try</span> &#123; <span class="keyword">return</span> <span class="built_in">stoi</span>(s); &#125; <span class="built_in">catch</span>(...) &#123; <span class="keyword">return</span> <span class="number">-1</span>; &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">list_cmd</span><span class="params">(Notebook&amp; nb, <span class="type">const</span> vector&lt;string&gt;&amp; args)</span> </span>&#123;</span><br><span class="line">    string by=<span class="string">&quot;created&quot;</span>; <span class="type">bool</span> desc=<span class="literal">true</span>;</span><br><span class="line">    <span class="keyword">if</span> (args.<span class="built_in">size</span>()&gt;=<span class="number">2</span>) by=args[<span class="number">1</span>];</span><br><span class="line">    <span class="keyword">if</span> (args.<span class="built_in">size</span>()&gt;=<span class="number">3</span>) desc = (args[<span class="number">2</span>]==<span class="string">&quot;desc&quot;</span>||args[<span class="number">2</span>]==<span class="string">&quot;true&quot;</span>||args[<span class="number">2</span>]==<span class="string">&quot;1&quot;</span>);</span><br><span class="line">    <span class="keyword">auto</span> ids = nb.<span class="built_in">list_sorted</span>(by, desc);</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;Listing &quot;</span> &lt;&lt; ids.<span class="built_in">size</span>() &lt;&lt; <span class="string">&quot; note(s) by=&quot;</span>&lt;&lt;by&lt;&lt;<span class="string">&quot; desc=&quot;</span>&lt;&lt;(desc?<span class="string">&quot;true&quot;</span>:<span class="string">&quot;false&quot;</span>)&lt;&lt;<span class="string">&quot;\n&quot;</span>;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> id: ids) &#123;</span><br><span class="line">        <span class="keyword">auto</span>* p = nb.<span class="built_in">find_by_id</span>(id);</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;[&quot;</span>&lt;&lt;p-&gt;id&lt;&lt;<span class="string">&quot;] &quot;</span>&lt;&lt;p-&gt;title&lt;&lt;<span class="string">&quot;  (c:&quot;</span>&lt;&lt;<span class="built_in">time_str</span>(p-&gt;created)&lt;&lt;<span class="string">&quot;, u:&quot;</span>&lt;&lt;<span class="built_in">time_str</span>(p-&gt;updated)&lt;&lt;<span class="string">&quot;)\n&quot;</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    ios::<span class="built_in">sync_with_stdio</span>(<span class="literal">false</span>);</span><br><span class="line">    cin.<span class="built_in">tie</span>(<span class="literal">nullptr</span>);</span><br><span class="line">    Notebook nb;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;Mini Notebook (C++) — type &#x27;help&#x27; for commands.\n&quot;</span>;</span><br><span class="line">    string line;</span><br><span class="line">    <span class="keyword">while</span> (<span class="literal">true</span>) &#123;</span><br><span class="line">        cout &lt;&lt; <span class="string">&quot;&gt; &quot;</span>;</span><br><span class="line">        <span class="keyword">if</span> (!<span class="built_in">getline</span>(cin, line)) <span class="keyword">break</span>;</span><br><span class="line">        line = <span class="built_in">trim</span>(line);</span><br><span class="line">        <span class="keyword">if</span> (line.<span class="built_in">empty</span>()) <span class="keyword">continue</span>;</span><br><span class="line">        <span class="keyword">auto</span> args = <span class="built_in">tokenize</span>(line);</span><br><span class="line">        string cmd = args[<span class="number">0</span>];</span><br><span class="line">        <span class="keyword">if</span> (cmd==<span class="string">&quot;help&quot;</span>) &#123;</span><br><span class="line">            <span class="built_in">print_help</span>();</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (cmd==<span class="string">&quot;exit&quot;</span>||cmd==<span class="string">&quot;quit&quot;</span>) &#123;</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (cmd==<span class="string">&quot;add&quot;</span>) &#123;</span><br><span class="line">            string title;</span><br><span class="line">            cout &lt;&lt; <span class="string">&quot;Title: &quot;</span>;</span><br><span class="line">            <span class="keyword">if</span> (!<span class="built_in">getline</span>(cin, title)) <span class="keyword">break</span>;</span><br><span class="line">            string body = <span class="built_in">read_multiline</span>(<span class="string">&quot;Body&quot;</span>);</span><br><span class="line">            <span class="type">int</span> id = nb.<span class="built_in">add</span>(<span class="built_in">trim</span>(title), body);</span><br><span class="line">            cout &lt;&lt; <span class="string">&quot;Added note #&quot;</span> &lt;&lt; id &lt;&lt; <span class="string">&quot;\n&quot;</span>;</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (cmd==<span class="string">&quot;addq&quot;</span>) &#123;</span><br><span class="line">            <span class="keyword">if</span> (args.<span class="built_in">size</span>()&lt;<span class="number">3</span>) &#123; cout&lt;&lt;<span class="string">&quot;Usage: addq \&quot;title\&quot; \&quot;one line body\&quot;\n&quot;</span>; <span class="keyword">continue</span>; &#125;</span><br><span class="line">            string title=args[<span class="number">1</span>], body=args[<span class="number">2</span>];</span><br><span class="line">            <span class="type">int</span> id = nb.<span class="built_in">add</span>(title, body+<span class="string">&quot;\n&quot;</span>);</span><br><span class="line">            cout &lt;&lt; <span class="string">&quot;Added note #&quot;</span> &lt;&lt; id &lt;&lt; <span class="string">&quot;\n&quot;</span>;</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (cmd==<span class="string">&quot;edit&quot;</span>) &#123;</span><br><span class="line">            <span class="keyword">if</span> (args.<span class="built_in">size</span>()&lt;<span class="number">2</span>) &#123; cout&lt;&lt;<span class="string">&quot;Usage: edit &lt;id&gt;\n&quot;</span>; <span class="keyword">continue</span>; &#125;</span><br><span class="line">            <span class="type">int</span> id = <span class="built_in">to_int</span>(args[<span class="number">1</span>]);</span><br><span class="line">            <span class="keyword">if</span> (id&lt;<span class="number">0</span>) &#123; cout&lt;&lt;<span class="string">&quot;Bad id\n&quot;</span>; <span class="keyword">continue</span>; &#125;</span><br><span class="line">            string title;</span><br><span class="line">            cout &lt;&lt; <span class="string">&quot;New title (leave empty to keep): &quot;</span>;</span><br><span class="line">            <span class="built_in">getline</span>(cin, title);</span><br><span class="line">            string body = <span class="built_in">read_multiline</span>(<span class="string">&quot;New body (leave empty to keep; &#x27;.&#x27; to finish)&quot;</span>);</span><br><span class="line">            <span class="keyword">if</span> (<span class="built_in">trim</span>(title).<span class="built_in">empty</span>()) title=<span class="string">&quot;&quot;</span>;</span><br><span class="line">            <span class="keyword">if</span> (<span class="built_in">trim</span>(body).<span class="built_in">empty</span>()) body=<span class="string">&quot;&quot;</span>;</span><br><span class="line">            <span class="keyword">if</span> (nb.<span class="built_in">edit</span>(id, title, body)) cout &lt;&lt; <span class="string">&quot;Edited.\n&quot;</span>; <span class="keyword">else</span> cout &lt;&lt; <span class="string">&quot;Not found.\n&quot;</span>;</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (cmd==<span class="string">&quot;title&quot;</span>) &#123;</span><br><span class="line">            <span class="keyword">if</span> (args.<span class="built_in">size</span>()&lt;<span class="number">3</span>) &#123; cout&lt;&lt;<span class="string">&quot;Usage: title &lt;id&gt; \&quot;new title\&quot;\n&quot;</span>; <span class="keyword">continue</span>; &#125;</span><br><span class="line">            <span class="type">int</span> id = <span class="built_in">to_int</span>(args[<span class="number">1</span>]);</span><br><span class="line">            <span class="keyword">if</span> (id&lt;<span class="number">0</span>) &#123; cout&lt;&lt;<span class="string">&quot;Bad id\n&quot;</span>; <span class="keyword">continue</span>; &#125;</span><br><span class="line">            string title=args[<span class="number">2</span>];</span><br><span class="line">            <span class="keyword">if</span> (nb.<span class="built_in">edit</span>(id, title, <span class="string">&quot;&quot;</span>)) cout&lt;&lt;<span class="string">&quot;Title updated.\n&quot;</span>; <span class="keyword">else</span> cout&lt;&lt;<span class="string">&quot;Not found.\n&quot;</span>;</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (cmd==<span class="string">&quot;body&quot;</span>) &#123;</span><br><span class="line">            <span class="keyword">if</span> (args.<span class="built_in">size</span>()&lt;<span class="number">2</span>) &#123; cout&lt;&lt;<span class="string">&quot;Usage: body &lt;id&gt;\n&quot;</span>; <span class="keyword">continue</span>; &#125;</span><br><span class="line">            <span class="type">int</span> id = <span class="built_in">to_int</span>(args[<span class="number">1</span>]);</span><br><span class="line">            <span class="keyword">if</span> (id&lt;<span class="number">0</span>) &#123; cout&lt;&lt;<span class="string">&quot;Bad id\n&quot;</span>; <span class="keyword">continue</span>; &#125;</span><br><span class="line">            string body = <span class="built_in">read_multiline</span>(<span class="string">&quot;Body&quot;</span>);</span><br><span class="line">            <span class="keyword">if</span> (nb.<span class="built_in">edit</span>(id, <span class="string">&quot;&quot;</span>, body)) cout&lt;&lt;<span class="string">&quot;Body updated.\n&quot;</span>; <span class="keyword">else</span> cout&lt;&lt;<span class="string">&quot;Not found.\n&quot;</span>;</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (cmd==<span class="string">&quot;del&quot;</span>) &#123;</span><br><span class="line">            <span class="keyword">if</span> (args.<span class="built_in">size</span>()&lt;<span class="number">2</span>) &#123; cout&lt;&lt;<span class="string">&quot;Usage: del &lt;id&gt;\n&quot;</span>; <span class="keyword">continue</span>; &#125;</span><br><span class="line">            <span class="type">int</span> id = <span class="built_in">to_int</span>(args[<span class="number">1</span>]);</span><br><span class="line">            <span class="keyword">if</span> (id&lt;<span class="number">0</span>) &#123; cout&lt;&lt;<span class="string">&quot;Bad id\n&quot;</span>; <span class="keyword">continue</span>; &#125;</span><br><span class="line">            cout &lt;&lt; (nb.<span class="built_in">erase</span>(id) ? <span class="string">&quot;Deleted.\n&quot;</span> : <span class="string">&quot;Not found.\n&quot;</span>);</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (cmd==<span class="string">&quot;list&quot;</span>) &#123;</span><br><span class="line">            <span class="built_in">list_cmd</span>(nb, args);</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (cmd==<span class="string">&quot;show&quot;</span>) &#123;</span><br><span class="line">            <span class="keyword">if</span> (args.<span class="built_in">size</span>()&lt;<span class="number">2</span>) &#123; cout&lt;&lt;<span class="string">&quot;Usage: show &lt;id&gt;\n&quot;</span>; <span class="keyword">continue</span>; &#125;</span><br><span class="line">            <span class="type">int</span> id = <span class="built_in">to_int</span>(args[<span class="number">1</span>]);</span><br><span class="line">            <span class="keyword">auto</span>* p = nb.<span class="built_in">find_by_id</span>(id);</span><br><span class="line">            <span class="keyword">if</span> (!p) &#123; cout&lt;&lt;<span class="string">&quot;Not found.\n&quot;</span>; <span class="keyword">continue</span>; &#125;</span><br><span class="line">            <span class="built_in">print_note</span>(*p);</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (cmd==<span class="string">&quot;find&quot;</span>) &#123;</span><br><span class="line">            <span class="keyword">if</span> (args.<span class="built_in">size</span>()&lt;<span class="number">2</span>) &#123; cout&lt;&lt;<span class="string">&quot;Usage: find &lt;query&gt;\n&quot;</span>; <span class="keyword">continue</span>; &#125;</span><br><span class="line">            string q=line.<span class="built_in">substr</span>(line.<span class="built_in">find</span>(cmd)+cmd.<span class="built_in">size</span>());</span><br><span class="line">            q=<span class="built_in">trim</span>(q);</span><br><span class="line">            <span class="keyword">auto</span> ids = nb.<span class="built_in">search_ids</span>(q);</span><br><span class="line">            cout &lt;&lt; <span class="string">&quot;Found &quot;</span> &lt;&lt; ids.<span class="built_in">size</span>() &lt;&lt; <span class="string">&quot; note(s)\n&quot;</span>;</span><br><span class="line">            <span class="keyword">for</span> (<span class="type">int</span> id: ids) &#123;</span><br><span class="line">                <span class="keyword">auto</span>* p=nb.<span class="built_in">find_by_id</span>(id);</span><br><span class="line">                cout &lt;&lt; <span class="string">&quot;[&quot;</span>&lt;&lt;p-&gt;id&lt;&lt;<span class="string">&quot;] &quot;</span>&lt;&lt;p-&gt;title&lt;&lt;<span class="string">&quot;\n&quot;</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (cmd==<span class="string">&quot;stats&quot;</span>) &#123;</span><br><span class="line">            <span class="built_in">print_stats</span>(nb);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            cout &lt;&lt; <span class="string">&quot;Unknown command. Type &#x27;help&#x27;.\n&quot;</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    cout &lt;&lt; <span class="string">&quot;Goodbye.\n&quot;</span>;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// ------------------------------------------------------------</span></span><br><span class="line"><span class="comment">// Extra notes:</span></span><br><span class="line"><span class="comment">// This program is intentionally verbose to hit 300 lines.</span></span><br><span class="line"><span class="comment">// Commands are simple; data is in-memory only.</span></span><br><span class="line"><span class="comment">// Try: add, list, show 1, find &quot;word&quot;, stats, edit 1, del 1.</span></span><br><span class="line"><span class="comment">// You can paste multi-line bodies; finish with a single dot &#x27;.&#x27;.</span></span><br><span class="line"><span class="comment">// Sorting: list title true|false uses &#x27;desc&#x27; flag as 3rd arg.</span></span><br><span class="line"><span class="comment">// Tokenization respects quotes: addq &quot;hello&quot; &quot;one line&quot;.</span></span><br><span class="line"><span class="comment">// Search is case-insensitive and matches substrings.</span></span><br><span class="line"><span class="comment">// Time stamps use localtime().</span></span><br><span class="line"><span class="comment">// ------------------------------------------------------------</span></span><br><span class="line"><span class="comment">// Potential extensions (exercise for reader):</span></span><br><span class="line"><span class="comment">// - Save/load to file (JSON/CSV).</span></span><br><span class="line"><span class="comment">// - Tagging and filtering by tags.</span></span><br><span class="line"><span class="comment">// - Markdown preview rendering.</span></span><br><span class="line"><span class="comment">// - Undo/redo stack.</span></span><br><span class="line"><span class="comment">// - Encryption of notes at rest.</span></span><br><span class="line"><span class="comment">// - Import from clipboard (OS-specific).</span></span><br><span class="line"><span class="comment">// - FTS with stemming / BM25.</span></span><br><span class="line"><span class="comment">// - Colored output and paging.</span></span><br><span class="line"><span class="comment">// - Unit tests and benchmarks.</span></span><br><span class="line"><span class="comment">// - Network sync and multi-user.</span></span><br><span class="line"><span class="comment">// End of file.</span></span><br><span class="line"></span><br><span class="line"></span><br></pre></td></tr></table></figure><p>模型部分先聚焦 CPNN。我们在相同特征与划分设置下尝试了 6 种 CPNN结构，最终选取在 Test 集上表现最好的三层版本作为报告模型。该模型是一个多层感知机，采用 ReLU 与适度的 Dropout，优化器为AdamW；训练全程遵循上面的早停与打印协议，并在结束时基于最佳 epoch 的 Val预测计算整体 MAE 与 0–70 各年龄的分龄MAE。接下来会在同一口径下补齐六个对比模型，以便形成可复现实验与对照表。</p><p><img src="CPNN.png" /></p>]]></content>
+      
+      
       <categories>
-        <category>精读解析</category>
+          
+          <category> 代码复现 </category>
+          
       </categories>
-      <tags>
-        <tag>标签分布学习</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>精读解析|从统一方差到分龄方差：自适应标签分布与联合优化</title>
-    <url>/zh-blog/2025/09/17/%E7%B2%BE%E8%AF%BB%E8%A7%A3%E6%9E%90-%E4%BB%8E%E7%BB%9F%E4%B8%80%E6%96%B9%E5%B7%AE%E5%88%B0%E5%88%86%E9%BE%84%E6%96%B9%E5%B7%AE%EF%BC%9A%E8%87%AA%E9%80%82%E5%BA%94%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%E4%B8%8E%E8%81%94%E5%90%88%E4%BC%98%E5%8C%96/</url>
-    <content><![CDATA[<p>本文对 Xin Geng 等人的论文《Facial Age Estimation by Adaptive Label
-Distribution Learning》（2014
-）进行了精读，系统梳理方法框架，并给出关键数学推导。本文展示了自适应标签分布与分龄方差的定义与软标签构造的交替优化流程；拟牛顿法对更新条件概率函数参数的优化；以及实验设置与结论。</p>
-<span id="more"></span>
-<p><em>论文链接：<a
-href="https://ieeexplore.ieee.org/document/6977477">Facial Age
-Estimation by Adaptive Label Distribution Learning</a></em></p>
-<p><em>本文前置文章链接：<a
-href="https://jiashun-ye.github.io/zh-blog/2025/03/16/%E7%B2%BE%E8%AF%BB%E8%A7%A3%E6%9E%90-%E4%BB%8E%E5%8D%95%E4%B8%80%E6%A0%87%E7%AD%BE%E5%88%B0%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%EF%BC%9A%E9%9D%A2%E9%83%A8%E5%B9%B4%E9%BE%84%E4%BC%B0%E8%AE%A1%E7%9A%84%E6%96%B0%E6%96%B9%E6%B3%95/#more">精读解析|从单一标签到标签分布：面部年龄估计的新方法</a></em></p>
-<p>人脸老化速度不恒定，儿童和老年变化快、青壮年变化慢，邻近年龄能“互借信息”的力度应随年龄段而变。固定方差的标签分布学习无法刻画这种差异，于是
-ALDL 让每个年龄 <span class="math inline">\(a\)</span>
-从数据中自适应地学得其方差 <span
-class="math inline">\(σ_α\)</span>：快段窄、慢段宽，软标签的扩散半径因龄而异，从而更精细地拟合年龄结构并提升整体与高龄稀疏段的预测表现。</p>
-<h1 id="自适应标签分布">自适应标签分布</h1>
-<p>传统标签分布学习为所有年龄使用同一方差，这与真实的老化节律不符：儿童与老年阶段外观变化更快，青壮年更平缓。于是同样的“邻近借用”强度不应一刀切。<strong>自适应标签分布（Adaptive
-Label Distribution）</strong>据此引入分龄方差：对每个年龄<span
-class="math inline">\(\alpha\)</span>单独学习其标签分布宽度，使快速变化的年龄段分布更尖锐、缓慢变化的年龄段更平滑。令<span
-class="math inline">\(\mathcal{Y}=\{y_1,\dots,y_c\}\)</span>，样本<span
-class="math inline">\(x\)</span>的真实年龄为<span
-class="math inline">\(\alpha\)</span>，以离散高斯刻画其软标签： <span
-class="math display">\[
-d_{y,x}(\sigma_\alpha)\;=\;\frac{\exp\!\big(-\tfrac{(y-\alpha)^2}{2\sigma_\alpha^2}\big)}{\sum_{y&#39;\in\mathcal{Y}}\exp\!\big(-\tfrac{(y&#39;-\alpha)^2}{2\sigma_\alpha^2}\big)}\,,
-\]</span> 其中<span
-class="math inline">\(\sigma_\alpha\)</span>是年龄<span
-class="math inline">\(\alpha\)</span>的分布宽度（分龄方差）。</p>
-<h2 id="分龄方差估计与软标签重构">分龄方差估计与软标签重构</h2>
-<p>在建模策略上，整套方法以改进的交替迭代贯穿始终：一开始用统一初始方差<span
-class="math inline">\(\sigma_0\)</span>把训练集从单标签转换为软标签，然后按
-IIS 的方式更新条件概率参数<span
-class="math inline">\(\theta\)</span>；接着用当前模型挑出可靠样本（例如其绝对误差<span
-class="math inline">\(e_i=\lvert
-\alpha_i-\hat\alpha_i\rvert\)</span>不超过当轮训练<span
-class="math inline">\(\mathrm{MAE}\)</span>），按真实年龄分组，仅用属于年龄<span
-class="math inline">\(\alpha\)</span>的可靠样本来更新该年龄的方差<span
-class="math inline">\(\sigma_\alpha\)</span>；如此“学<span
-class="math inline">\(\theta\)</span>—调<span
-class="math inline">\(\sigma\)</span>—重构软标签”往复进行，直至误差收敛。形式化地，给定第<span
-class="math inline">\(k\!-\!1\)</span>轮的软标签<span
-class="math inline">\(D_i^{(k-1)}=\big(d_{y,x_i}^{(k-1)}\big)_{y\in\mathcal{Y}}\)</span>，先做与普通标签分布学习一致的<span
-class="math inline">\(\theta\)</span>更新： <span
-class="math display">\[
-\theta^{(k)} \;=\; \arg\max_{\theta}\;\sum_i\sum_{y\in\mathcal{Y}}
-d_{y,x_i}^{(k-1)}\,\log p(y\mid x_i;\theta),\qquad
-p(y\mid x;\theta)\;=\;\frac{\exp\!\big(\langle
-\theta_y,\,g(x)\rangle\big)}{\sum_{y&#39;}\exp\!\big(\langle
-\theta_{y&#39;},\,g(x)\rangle\big)}.
-\]</span> 用<span
-class="math inline">\(\theta^{(k)}\)</span>得到点预测<span
-class="math inline">\(\hat\alpha_i=\arg\max_y p(y\mid
-x_i;\theta^{(k)})\)</span>并筛出可靠样本，然后对每个年龄<span
-class="math inline">\(\alpha\)</span>在其可靠集合<span
-class="math inline">\(I_\alpha\)</span>上，最小化模板高斯与模型分布的<span
-class="math inline">\(\mathrm{KL}\)</span>以更新方差： <span
-class="math display">\[
-\sigma_\alpha^{(k)} \;=\; \arg\min_{\sigma&gt;0}\;\sum_{m\in
-I_\alpha}\sum_{y\in\mathcal{Y}}
-d_{y,\alpha}(\sigma)\,\log\frac{d_{y,\alpha}(\sigma)}{\,p(y\mid
-x_m;\theta^{(k)})\,},\qquad
-d_{y,\alpha}(\sigma)\;\propto\;\exp\!\big(-\tfrac{(y-\alpha)^2}{2\sigma^2}\big).
-\]</span>
-为便于数值实现，可利用对数障碍函数把方差大于0的限制问题转化为无约束问题，就能把上式写成一维光滑目标<span
-class="math inline">\(F_\alpha(\sigma)\)</span>并用线搜索或（拟）牛顿法求其极小点；其梯度可由<span
-class="math inline">\(q_y(\sigma)=d_{y,\alpha}(\sigma)\)</span>的对数导数给出：
-<span class="math display">\[
-\frac{\mathrm{d}F_\alpha}{\mathrm{d}\sigma}
-\;=\;\sum_{y\in\mathcal{Y}} \Big(\sum_{m\in I_\alpha}\big[\log
-q_y(\sigma)-\log p(y\mid
-x_m;\theta^{(k)})+1\big]\Big)\,\frac{\mathrm{d}q_y(\sigma)}{\mathrm{d}\sigma}
-\]</span></p>
-<p><span class="math display">\[
-\frac{\mathrm{d}q_y(\sigma)}{\mathrm{d}\sigma}
-=q_y(\sigma)\Big(\frac{(y-\alpha)^2-\mathbb{E}_{q(\sigma)}[(Y-\alpha)^2]}{\sigma^3}\Big),
-\]</span> 其中<span
-class="math inline">\(\mathbb{E}_{q(\sigma)}[(Y-\alpha)^2]=\sum_{y}q_y(\sigma)\,(y-\alpha)^2\)</span>。更新得到<span
-class="math inline">\(\{\sigma_\alpha^{(k)}\}\)</span>后，将其回填到所有样本以重构软标签
-<span class="math display">\[
-d_{y,x_i}^{(k)}\;=\;\frac{\exp\!\big(-\tfrac{(y-\alpha_i)^2}{2(\sigma_{\alpha_i}^{(k)})^2}\big)}{\sum_{y&#39;}\exp\!\big(-\tfrac{(y&#39;-\alpha_i)^2}{2(\sigma_{\alpha_i}^{(k)})^2}\big)}\,,
-\]</span> 并进入下一轮迭代；当相邻两轮的<span
-class="math inline">\(\mathrm{MAE}\)</span>改善小于阈值<span
-class="math inline">\(\varepsilon\)</span>时停止。这样，<span
-class="math inline">\(\theta\)</span>的更新完全沿用普通标签分布学习的最大似然形式，而<span
-class="math inline">\(\sigma\)</span>的更新则把“分龄应借多少邻近信息”交由数据自适应地决定。ALDL算法流程图如下所示。</p>
-<p><img src="ALDL.png" /></p>
-<h2 id="拟牛顿驱动的参数学习">拟牛顿驱动的参数学习</h2>
-<p>条件概率函数的训练目标保持不变，仍以最小化分布级负对数似然为准。将“加权对数似然最大化”改写为负目标
-<span class="math display">\[
-T(\theta)\;=\;\sum_{i}\log\!\sum_{j}\exp\!\Big(\sum_{r}\theta_{y_j,r}\,x_i^{(r)}\Big)\;-\;\sum_{i,j}
-d^{\,k-1}_{y_j,x_i}\,\sum_{r}\theta_{y_j,r}\,x_i^{(r)},
-\]</span> 其中 <span class="math display">\[
-p(y_j\mid
-x_i;\theta)\;=\;\frac{\exp\!\big(\sum_{r}\theta_{y_j,r}\,x_i^{(r)}\big)}{\sum_{j&#39;}\exp\!\big(\sum_{r}\theta_{y_{j&#39;},r}\,x_i^{(r)}\big)}.
-\]</span> 梯度写作 <span class="math display">\[
-\frac{\partial T(\theta)}{\partial \theta_{y_j,r}}
-\;=\;\sum_{i}p(y_j\mid x_i;\theta)\,x_i^{(r)}\;-\;\sum_{i}
-d^{\,k-1}_{y_j,x_i}\,x_i^{(r)}.
-\]</span></p>
-<p>在每一轮外层交替的第 <span class="math inline">\(k\)</span> 轮中，用
-BFGS-ALDL 替代 IIS 进行内层优化：以上一轮解热启动 <span
-class="math inline">\(\theta_{k,0}=\theta^{(k-1)}\)</span>，设初始近似逆海森矩阵
-<span class="math inline">\(B_0=I\)</span>。在第 <span
-class="math inline">\(l\)</span> 次内迭代，方向取 <span
-class="math display">\[
-s_l \;=\; -\,B_{l-1}\,\nabla T(\theta_{k,l-1}),
-\]</span> 通过满足强 Wolfe 条件的线搜索得到步长 <span
-class="math inline">\(\alpha_l\)</span>，并更新 <span
-class="math display">\[
-\theta_{k,l}\;=\;\theta_{k,l-1}\;+\;\alpha_l\,s_l.
-\]</span> 随后按标准 BFGS 递推近似逆海森：记 <span
-class="math display">\[
-y_l\;=\;\nabla T(\theta_{k,l})-\nabla T(\theta_{k,l-1}),\qquad
-\rho_l\;=\;\frac{1}{y_l^\top s_l},
-\]</span> 则 <span class="math display">\[
-B_l\;=\;(I-\rho_l s_l y_l^\top)\,B_{l-1}\,(I-\rho_l y_l
-s_l^\top)\;+\;\rho_l\,s_l s_l^\top.
-\]</span> 以相对目标下降或 <span class="math inline">\(\lVert\nabla
-T(\theta_{k,l})\rVert_\infty\)</span>
-达到阈值作为停止准则即可；本节的目标与上一节一致，仅将 IIS
-的内层求解器替换为“牛顿方向 + 强 Wolfe 线搜索 + BFGS
-近似逆海森”的拟牛顿方案。</p>
-<h1 id="实验和结果分析">实验和结果分析</h1>
-<p>论文采用两套标准数据与协议：FG-NET 用 LOPO（每次留出一人）和 MAE
-评估，包含 82 人共 1002 张、年龄 0–69；MORPH（Album II）用 10
-折交叉验证和 MAE±std，年龄约 16–77。特征维度统一为 200，其中 FG-NET 使用
-Apearance Model 抽取形状+纹理联合特征并截取得到 200 维，MORPH 使用
-BIF，经 MFA 降到 200
-维以保持可比性。对比方法分为两条轴：是否自适应与求解器类型。固定方差的标签分布学习（LDL）包括
-IIS-LDL 与 BFGS-LDL；自适应方差的 ALDL 包括 IIS-ALDL 与
-BFGS-ALDL。软标签形状做消融：Gaussian、Triangle 以及退化的
-Single（相当于不扩散的单标签）。</p>
-<p>总体上，自适应方差显著降低
-MAE，尤其在高龄样本稀疏的年龄段优势更明显（ALDL 优于
-LDL）；在相同设置下，用拟牛顿替代 IIS
-的内层优化带来更快收敛与更低误差，BFGS-ALDL 通常在四类组合中同时取得最低
-MAE
-与最短训练时间，且主要收益集中在外层交替的前几轮。就分布形状而言，Gaussian
-一般略优于 Triangle，Single
-明显落后；这与“相邻年龄可借用但不应过度稀释”的直觉一致，自适应学习得到的分龄方差随年龄而变，呈“快段窄、慢段宽”的趋势，从机制上解释了性能提升。</p>
-]]></content>
+      
+      
+        <tags>
+            
+            <tag> 标签分布学习 </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>精读解析|端到端的标签分布学习：突破函数形状限制</title>
+      <link href="/zh-blog/2025/09/11/%E7%B2%BE%E8%AF%BB%E8%A7%A3%E6%9E%90-%E7%AB%AF%E5%88%B0%E7%AB%AF%E7%9A%84%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%E5%AD%A6%E4%B9%A0%EF%BC%9A%E7%AA%81%E7%A0%B4%E5%87%BD%E6%95%B0%E5%BD%A2%E7%8A%B6%E9%99%90%E5%88%B6/"/>
+      <url>/zh-blog/2025/09/11/%E7%B2%BE%E8%AF%BB%E8%A7%A3%E6%9E%90-%E7%AB%AF%E5%88%B0%E7%AB%AF%E7%9A%84%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%E5%AD%A6%E4%B9%A0%EF%BC%9A%E7%AA%81%E7%A0%B4%E5%87%BD%E6%95%B0%E5%BD%A2%E7%8A%B6%E9%99%90%E5%88%B6/</url>
+      
+        <content type="html"><![CDATA[<p>本文对 Xin Geng 等人的论文《Facial Age Estimation by Learning fromLabel Distributions》（2013 ）进行了精读。该工作是在 2011年提出的标签分布学习与 IIS-LLD算法基础上的拓展，提出了条件概率神经网络（CPNN），以端到端方式直接建模条件分布，突破了固定函数形状的限制。本文将重点说明CPNN 的建模流程，并总结其在 FG-NET 与 MORPH 数据集上的实验结果。</p><span id="more"></span><p><em>论文链接：<ahref="https://ieeexplore.ieee.org/document/6475129">Facial AgeEstimation by Learning from Label Distributions</a></em></p><p><em>本文前置文章链接：<ahref="https://jiashun-ye.github.io/zh-blog/2025/03/16/%E7%B2%BE%E8%AF%BB%E8%A7%A3%E6%9E%90-%E4%BB%8E%E5%8D%95%E4%B8%80%E6%A0%87%E7%AD%BE%E5%88%B0%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%EF%BC%9A%E9%9D%A2%E9%83%A8%E5%B9%B4%E9%BE%84%E4%BC%B0%E8%AE%A1%E7%9A%84%E6%96%B0%E6%96%B9%E6%B3%95/#more">精读解析|从单一标签到标签分布：面部年龄估计的新方法</a></em></p><p>基于最大熵模型的 IIS-LLD需要预设条件概率分布的指数族形式，这一假设存在局限，容易导致模型错设。为突破这一限制，论文提出条件概率神经网络（CPNN），通过神经网络端到端建模<spanclass="math inline">\(p(y∣x)\)</span>，不依赖特定函数形状假设，并借助标签分布监督实现更灵活、更准确的年龄估计。</p><h1 id="灵活的条件概率建模">灵活的条件概率建模</h1><p>目标是直接学习条件分布 <span class="math inline">\(p(y\midx)\)</span>。设输入特征 <spanclass="math inline">\(x\in\mathbb{R}^q\)</span>，离散年龄集合 <spanclass="math inline">\(\mathcalY=\{y_1,\dots,y_c\}\)</span>，并记训练时给定的标签分布为 <spanclass="math inline">\(D_x(y)\)</span>。与最大熵模型 <spanclass="math inline">\(p(y\mid x;\theta)\propto\exp\!\big(\langle\theta,\phi(x,y)\rangle\big)\)</span>不同，三层感知机直接参数化 <span class="math inline">\(p(y\midx)\)</span>，以提升非线性拟合能力并避免模型错设。这就是CPNN算法。</p><p>直觉上可让网络接收特征 <spanclass="math inline">\(x\in\mathbb{R}^q\)</span> 并一次性输出长度为 <spanclass="math inline">\(c\)</span> 的年龄分布，但这会引入 <spanclass="math inline">\(\mathcal O(H\!\cdot\!c)\)</span> 的末层参数（<spanclass="math inline">\(H\)</span>为隐藏单元数），在样本有限时难以稳健训练。为此，将年龄 <spanclass="math inline">\(y\)</span> 也作为输入，采用共享参数的函数 <spanclass="math display">\[f_\theta(x,y)=\mathrm{MLP}_\theta\!\big([\;x,\\mathrm{enc}(y)\;]\big)\in\mathbb{R},\]</span> 对同一张图像的所有候选年龄 <spanclass="math inline">\(y\in\mathcal Y\)</span> 枚举得到 <spanclass="math inline">\(\{f_\theta(x,y)\}_{y\in\mathcalY}\)</span>，再通过指数归一化获得条件概率 <span class="math display">\[p_\theta(y\midx)=\frac{\exp\!\big(f_\theta(x,y)\big)}{\sum_{y&#39;\in\mathcalY}\exp\!\big(f_\theta(x,y&#39;)\big)}.\]</span> 这种“<span class="math inline">\(y\)</span>作为输入、单输出标量”的设计既保持与 softmax相同的概率归一化形式，又显著降低参数规模，并在相邻年龄间实现自然的参数共享。</p><p>训练目标为分布级交叉熵 <span class="math display">\[\mathcal L(\theta)=-\sum_{y\in\mathcal Y} D_x(y)\,\log p_\theta(y\midx),\qquadp_\theta(y\midx)=\frac{\exp(f_\theta(x,y))}{\sum_{y&#39;}\exp(f_\theta(x,y&#39;))}.\]</span> 其顶层梯度为 <span class="math inline">\(\partial \mathcalL/\partial f_\theta(x,y)=p_\theta(y\midx)-D_x(y)\)</span>。反向传播中，输出层为线性单元，<spanclass="math inline">\(f_\theta(x,y)=\sum_{m=1}^{M_2}\theta_{31m}\,z^{(2)}_m(x,y)\)</span>，其中<span class="math inline">\(z^{(2)}_m=G(I_{2m})\)</span> 为隐藏层第<span class="math inline">\(m\)</span> 个单元的输出，<spanclass="math inline">\(I_{2m}=\sum_{k=0}^{M_1}\theta_{2mk}\,u_k\)</span>为其净输入，<span class="math inline">\(u=[1,x,\mathrm{enc}(y)]\)</span>是含偏置与年龄编码的输入拼接向量，<span class="math inline">\(G\)</span>为 sigmoid，<span class="math inline">\(G&#39;\)</span> 为其导数，<spanclass="math inline">\(\theta_{31m}\)</span> 为隐藏到输出的权重，<spanclass="math inline">\(\theta_{2mk}\)</span> 为输入到隐藏的权重。由此有<span class="math display">\[\frac{\partial \mathcal L}{\partial \theta_{31m}}=\sum_{y\in\mathcal Y}\big(p_\theta(y\midx)-D_x(y)\big)\,z^{(2)}_m(x,y),\qquad\]</span> <span class="math display">\[\frac{\partial \mathcal L}{\partial \theta_{2mk}}=\sum_{y\in\mathcal Y}\big(p_\theta(y\midx)-D_x(y)\big)\,\theta_{31m}\,G&#39;(I_{2m}(x,y))\,u_k(x,y),\]</span> 实践中采用标准 BP 反向传播训练即可。</p><h1 id="实验和结果分析">实验和结果分析</h1><p>FG-NET 采用 LOPO 验证与 MAE 评估，图像来自 82 人共 1002 张，年龄0–69；MORPH 使用 10 折交叉验证并以 MAE±std 汇报结果，年龄16–77。两套数据的 200 维特征来自不同管线：FG-NET使用外观模型（Appearance Model）抽取形状与灰度联合特征并取前 200个模型参数；MORPH 使用 BIF（Bio-Inspired Features），随后以MFA（Marginal Fisher Analysis）将特征降至 200维，从而在相同维度上对比算法表现。</p><p>由于本文重点关注 CPNN，仅报告其表现。网络为三层感知机，隐藏层 400个单元，将年龄 y 与图像特征拼接为输入，经 softmax归一化得到条件分布并以分布级交叉熵训练；标签分布做Gaussian、Triangle、Single 三种对照以衡量相邻年龄的“软监督”。与 IIS-LLD的总体结论是：在相同特征与协议下，CPNN的平均误差更低，但更依赖数据、方差略高，而 IIS-LLD因最大熵形状先验与逐维增量优化更稳更快；在训练数据递减实验中 IIS-LLD曲线更平滑。只看 CPNN 的消融，Gaussian 的 σ 与 Triangle 的底边 l过窄（近似 Single）会削弱相邻监督、过宽会稀释主标签，适中最好（经验上σ≈2、l≈6）；相对于低龄样本充足的年龄段，以及相对于 Single 与 AGES等基线方法，在 60–69 岁等高龄稀疏段的相对改进幅度更大。</p><!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><style>  table { width: 76%; margin: 14px auto; border-collapse: collapse; font-size: 0.94em; }  thead th { border-top: 3px solid #000; border-bottom: 2px solid #000; padding: 4px 6px; text-align: center; background: #f6f6f6; }  tbody td { padding: 2px 6px; text-align: left; border-bottom: 1px solid #ddd; }  tbody tr:last-child td { border-bottom: 3px solid #000; }  caption { font-size: 1.12em; margin: 4px 0 2px; }</style></head><body>  <table>    <caption>CPNN 与 IIS-LLD 优缺点对照</caption>    <thead>      <tr>        <th>方法</th>        <th>优点</th>        <th>局限</th>      </tr>    </thead>    <tbody>      <tr>        <td>IIS-LLD</td>        <td>最大熵形状先验带来稳定性；参数增量逐维优化，收敛更快；训练数据递减时曲线更平滑</td>        <td>预设 $p(y|x)$ 形状可能与任务不匹配；各标签分别学习参数，跨标签相关性利用不足</td>      </tr>      <tr>        <td>CPNN</td>        <td>不设 $p(y|x)$ 形状假设，表达更灵活；所有标签共享参数，可显式利用相邻年龄相关性，平均误差更低</td>        <td>更依赖数据、方差略高；端到端训练更慢，需用正则与适中分布尺度抑制过拟合</td>      </tr>    </tbody>  </table></body></html><p>从成因上看，CPNN 直接建模 <span class="math inline">\(p(y|x)\)</span>并让所有标签共享参数，能把“相邻年龄相似”的结构以软监督方式注入网络，只要分布尺度设置得当，就能在数据较充足或特征表达较强时取得更低的MAE；对应地，自由度更高也让它对数据规模更敏感、方差略高。IIS-LLD 把<span class="math inline">\(p(y|x)\)</span>固定为最大熵的指数族形式，并通过逐维增量求解下界，参数更新更可控、更省算力，因而在样本有限、需要稳健与效率的场景往往更合适；但这种形状约束限制了对跨标签相关性的吸收，导致在大样本或强特征设置下平均误差通常不及CPNN。实际应用可据此取舍：若侧重极限精度且资源允许，优先 CPNN并配合合适的 <span class="math inline">\(σ\)</span>与正则；若侧重训练/推理效率或数据规模受限，优先 IIS-LLD。</p>]]></content>
+      
+      
       <categories>
-        <category>精读解析</category>
+          
+          <category> 精读解析 </category>
+          
       </categories>
-      <tags>
-        <tag>标签分布学习</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>精读解析|端到端的标签分布学习：突破函数形状限制</title>
-    <url>/zh-blog/2025/09/11/%E7%B2%BE%E8%AF%BB%E8%A7%A3%E6%9E%90-%E7%AB%AF%E5%88%B0%E7%AB%AF%E7%9A%84%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%E5%AD%A6%E4%B9%A0%EF%BC%9A%E7%AA%81%E7%A0%B4%E5%87%BD%E6%95%B0%E5%BD%A2%E7%8A%B6%E9%99%90%E5%88%B6/</url>
-    <content><![CDATA[<p>本文对 Xin Geng 等人的论文《Facial Age Estimation by Learning from
-Label Distributions》（2013 ）进行了精读。该工作是在 2011
-年提出的标签分布学习与 IIS-LLD
-算法基础上的拓展，提出了条件概率神经网络（CPNN），以端到端方式直接建模条件分布，突破了固定函数形状的限制。本文将重点说明
-CPNN 的建模流程，并总结其在 FG-NET 与 MORPH 数据集上的实验结果。</p>
-<span id="more"></span>
-<p><em>论文链接：<a
-href="https://ieeexplore.ieee.org/document/6475129">Facial Age
-Estimation by Learning from Label Distributions</a></em></p>
-<p><em>本文前置文章链接：<a
-href="https://jiashun-ye.github.io/zh-blog/2025/03/16/%E7%B2%BE%E8%AF%BB%E8%A7%A3%E6%9E%90-%E4%BB%8E%E5%8D%95%E4%B8%80%E6%A0%87%E7%AD%BE%E5%88%B0%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%EF%BC%9A%E9%9D%A2%E9%83%A8%E5%B9%B4%E9%BE%84%E4%BC%B0%E8%AE%A1%E7%9A%84%E6%96%B0%E6%96%B9%E6%B3%95/#more">精读解析|从单一标签到标签分布：面部年龄估计的新方法</a></em></p>
-<p>基于最大熵模型的 IIS-LLD
-需要预设条件概率分布的指数族形式，这一假设存在局限，容易导致模型错设。为突破这一限制，论文提出条件概率神经网络（CPNN），通过神经网络端到端建模
-<span
-class="math inline">\(p(y∣x)\)</span>，不依赖特定函数形状假设，并借助标签分布监督实现更灵活、更准确的年龄估计。</p>
-<h1 id="灵活的条件概率建模">灵活的条件概率建模</h1>
-<p>目标是直接学习条件分布 <span class="math inline">\(p(y\mid
-x)\)</span>。设输入特征 <span
-class="math inline">\(x\in\mathbb{R}^q\)</span>，离散年龄集合 <span
-class="math inline">\(\mathcal
-Y=\{y_1,\dots,y_c\}\)</span>，并记训练时给定的标签分布为 <span
-class="math inline">\(D_x(y)\)</span>。与最大熵模型 <span
-class="math inline">\(p(y\mid x;\theta)\propto
-\exp\!\big(\langle\theta,\phi(x,y)\rangle\big)\)</span>
-不同，三层感知机直接参数化 <span class="math inline">\(p(y\mid
-x)\)</span>，以提升非线性拟合能力并避免模型错设。这就是CPNN算法。</p>
-<p>直觉上可让网络接收特征 <span
-class="math inline">\(x\in\mathbb{R}^q\)</span> 并一次性输出长度为 <span
-class="math inline">\(c\)</span> 的年龄分布，但这会引入 <span
-class="math inline">\(\mathcal O(H\!\cdot\!c)\)</span> 的末层参数（<span
-class="math inline">\(H\)</span>
-为隐藏单元数），在样本有限时难以稳健训练。为此，将年龄 <span
-class="math inline">\(y\)</span> 也作为输入，采用共享参数的函数 <span
-class="math display">\[
-f_\theta(x,y)=\mathrm{MLP}_\theta\!\big([\;x,\
-\mathrm{enc}(y)\;]\big)\in\mathbb{R},
-\]</span> 对同一张图像的所有候选年龄 <span
-class="math inline">\(y\in\mathcal Y\)</span> 枚举得到 <span
-class="math inline">\(\{f_\theta(x,y)\}_{y\in\mathcal
-Y}\)</span>，再通过指数归一化获得条件概率 <span class="math display">\[
-p_\theta(y\mid
-x)=\frac{\exp\!\big(f_\theta(x,y)\big)}{\sum_{y&#39;\in\mathcal
-Y}\exp\!\big(f_\theta(x,y&#39;)\big)}.
-\]</span> 这种“<span class="math inline">\(y\)</span>
-作为输入、单输出标量”的设计既保持与 softmax
-相同的概率归一化形式，又显著降低参数规模，并在相邻年龄间实现自然的参数共享。</p>
-<p>训练目标为分布级交叉熵 <span class="math display">\[
-\mathcal L(\theta)=-\sum_{y\in\mathcal Y} D_x(y)\,\log p_\theta(y\mid
-x),\qquad
-p_\theta(y\mid
-x)=\frac{\exp(f_\theta(x,y))}{\sum_{y&#39;}\exp(f_\theta(x,y&#39;))}.
-\]</span> 其顶层梯度为 <span class="math inline">\(\partial \mathcal
-L/\partial f_\theta(x,y)=p_\theta(y\mid
-x)-D_x(y)\)</span>。反向传播中，输出层为线性单元，<span
-class="math inline">\(f_\theta(x,y)=\sum_{m=1}^{M_2}\theta_{31m}\,z^{(2)}_m(x,y)\)</span>，其中
-<span class="math inline">\(z^{(2)}_m=G(I_{2m})\)</span> 为隐藏层第
-<span class="math inline">\(m\)</span> 个单元的输出，<span
-class="math inline">\(I_{2m}=\sum_{k=0}^{M_1}\theta_{2mk}\,u_k\)</span>
-为其净输入，<span class="math inline">\(u=[1,x,\mathrm{enc}(y)]\)</span>
-是含偏置与年龄编码的输入拼接向量，<span class="math inline">\(G\)</span>
-为 sigmoid，<span class="math inline">\(G&#39;\)</span> 为其导数，<span
-class="math inline">\(\theta_{31m}\)</span> 为隐藏到输出的权重，<span
-class="math inline">\(\theta_{2mk}\)</span> 为输入到隐藏的权重。由此有
-<span class="math display">\[
-\frac{\partial \mathcal L}{\partial \theta_{31m}}
-=\sum_{y\in\mathcal Y}\big(p_\theta(y\mid
-x)-D_x(y)\big)\,z^{(2)}_m(x,y),\qquad
-\]</span> <span class="math display">\[
-\frac{\partial \mathcal L}{\partial \theta_{2mk}}
-=\sum_{y\in\mathcal Y}\big(p_\theta(y\mid
-x)-D_x(y)\big)\,\theta_{31m}\,G&#39;(I_{2m}(x,y))\,u_k(x,y),
-\]</span> 实践中采用标准 BP 反向传播训练即可。</p>
-<h1 id="实验和结果分析">实验和结果分析</h1>
-<p>FG-NET 采用 LOPO 验证与 MAE 评估，图像来自 82 人共 1002 张，年龄
-0–69；MORPH 使用 10 折交叉验证并以 MAE±std 汇报结果，年龄
-16–77。两套数据的 200 维特征来自不同管线：FG-NET
-使用外观模型（Appearance Model）抽取形状与灰度联合特征并取前 200
-个模型参数；MORPH 使用 BIF（Bio-Inspired Features），随后以
-MFA（Marginal Fisher Analysis）将特征降至 200
-维，从而在相同维度上对比算法表现。</p>
-<p>由于本文重点关注 CPNN，仅报告其表现。网络为三层感知机，隐藏层 400
-个单元，将年龄 y 与图像特征拼接为输入，经 softmax
-归一化得到条件分布并以分布级交叉熵训练；标签分布做
-Gaussian、Triangle、Single 三种对照以衡量相邻年龄的“软监督”。与 IIS-LLD
-的总体结论是：在相同特征与协议下，CPNN
-的平均误差更低，但更依赖数据、方差略高，而 IIS-LLD
-因最大熵形状先验与逐维增量优化更稳更快；在训练数据递减实验中 IIS-LLD
-曲线更平滑。只看 CPNN 的消融，Gaussian 的 σ 与 Triangle 的底边 l
-过窄（近似 Single）会削弱相邻监督、过宽会稀释主标签，适中最好（经验上
-σ≈2、l≈6）；相对于低龄样本充足的年龄段，以及相对于 Single 与 AGES
-等基线方法，在 60–69 岁等高龄稀疏段的相对改进幅度更大。</p>
-
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<style>
-  table { width: 76%; margin: 14px auto; border-collapse: collapse; font-size: 0.94em; }
-  thead th { border-top: 3px solid #000; border-bottom: 2px solid #000; padding: 4px 6px; text-align: center; background: #f6f6f6; }
-  tbody td { padding: 2px 6px; text-align: left; border-bottom: 1px solid #ddd; }
-  tbody tr:last-child td { border-bottom: 3px solid #000; }
-  caption { font-size: 1.12em; margin: 4px 0 2px; }
-</style>
-</head>
-<body>
-  <table>
-    <caption>CPNN 与 IIS-LLD 优缺点对照</caption>
-    <thead>
-      <tr>
-        <th>方法</th>
-        <th>优点</th>
-        <th>局限</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>IIS-LLD</td>
-        <td>最大熵形状先验带来稳定性；参数增量逐维优化，收敛更快；训练数据递减时曲线更平滑</td>
-        <td>预设 $p(y|x)$ 形状可能与任务不匹配；各标签分别学习参数，跨标签相关性利用不足</td>
-      </tr>
-      <tr>
-        <td>CPNN</td>
-        <td>不设 $p(y|x)$ 形状假设，表达更灵活；所有标签共享参数，可显式利用相邻年龄相关性，平均误差更低</td>
-        <td>更依赖数据、方差略高；端到端训练更慢，需用正则与适中分布尺度抑制过拟合</td>
-      </tr>
-    </tbody>
-  </table>
-</body>
-</html>
-
-<p>从成因上看，CPNN 直接建模 <span class="math inline">\(p(y|x)\)</span>
-并让所有标签共享参数，能把“相邻年龄相似”的结构以软监督方式注入网络，只要分布尺度设置得当，就能在数据较充足或特征表达较强时取得更低的
-MAE；对应地，自由度更高也让它对数据规模更敏感、方差略高。IIS-LLD 把
-<span class="math inline">\(p(y|x)\)</span>
-固定为最大熵的指数族形式，并通过逐维增量求解下界，参数更新更可控、更省算力，因而在样本有限、需要稳健与效率的场景往往更合适；但这种形状约束限制了对跨标签相关性的吸收，导致在大样本或强特征设置下平均误差通常不及
-CPNN。实际应用可据此取舍：若侧重极限精度且资源允许，优先 CPNN
-并配合合适的 <span class="math inline">\(σ\)</span>
-与正则；若侧重训练/推理效率或数据规模受限，优先 IIS-LLD。</p>
-]]></content>
+      
+      
+        <tags>
+            
+            <tag> 标签分布学习 </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>精读解析|从单一标签到标签分布：面部年龄估计的新方法</title>
+      <link href="/zh-blog/2025/03/16/%E7%B2%BE%E8%AF%BB%E8%A7%A3%E6%9E%90-%E4%BB%8E%E5%8D%95%E4%B8%80%E6%A0%87%E7%AD%BE%E5%88%B0%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%EF%BC%9A%E9%9D%A2%E9%83%A8%E5%B9%B4%E9%BE%84%E4%BC%B0%E8%AE%A1%E7%9A%84%E6%96%B0%E6%96%B9%E6%B3%95/"/>
+      <url>/zh-blog/2025/03/16/%E7%B2%BE%E8%AF%BB%E8%A7%A3%E6%9E%90-%E4%BB%8E%E5%8D%95%E4%B8%80%E6%A0%87%E7%AD%BE%E5%88%B0%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%EF%BC%9A%E9%9D%A2%E9%83%A8%E5%B9%B4%E9%BE%84%E4%BC%B0%E8%AE%A1%E7%9A%84%E6%96%B0%E6%96%B9%E6%B3%95/</url>
+      
+        <content type="html"><![CDATA[<p>本文对Xin Geng等人的论文《Facial Age Estimation by Learning fromLabelDistributions》（2011）进行了精读，系统梳理其研究框架，并详细推导了其中的关键数学模型。精读过程包括明确标签分布的定义，分析以KL散度为目标的标签分布学习模型，深入推导了基于最大熵模型的条件概率函数及其优化算法IIS-LLD，最后总结了论文的实验设计与结果。</p><span id="more"></span><p><em>论文链接：<ahref="https://cdn.aaai.org/ojs/7657/7657-13-11187-1-2-20201228.pdf">FacialAge Estimation by Learning from Label Distributions</a></em></p><p>面部年龄估计面临数据稀疏性挑战（如高龄段样本不足）。受到年龄变化具有连续性（相邻年龄特征相似）启发，XinGeng提出<em>标签分布学习</em>框架：将单一年龄标签扩展为覆盖邻近年龄的分布，通过共享年龄特征缓解数据不足，显著提升模型泛化能力，尤其是高龄的准确度。</p><h1 id="定义标签分布">定义标签分布</h1><p>标签分布是单标签和多标签的一个拓广，并且标签分布的含义和概率或者模糊分类不同，不过在数学结构上与概率高度相似。标签分布的核心概念是，每个标签都是对样本的正确描述，但描述程度不同，所有标签的组合构成对样本的完整描述。相比传统的单标签学习，这种方法能更好地反映类别之间的相关性，特别适用于年龄估计这样的连续变量任务。</p><p>设<span class="math inline">\(\alpha\)</span>是原始标签，<spanclass="math inline">\(y\)</span>是一般标签，从单标签转换为标签分布需要遵循两个基本原则：</p><ul><li><p>原始标签的描述程度最大，即 <spanclass="math inline">\(P(\alpha)\)</span> 应该是分布中的最大值。</p></li><li><p>距离原始标签越远的标签，其描述程度越低，即 <spanclass="math inline">\(P(y)\)</span> 随 <span class="math inline">\(|y -\alpha|\)</span> 的增加而递减。</p></li></ul><p>论文里使用的标签分布有以下两种：</p><p><img src="高斯分布和三角分布.png" /></p><p><u><em>高斯分布（GaussianDistribution）</em></u>，通过指数衰减方式平滑地降低相邻标签的权重，定义如下：<span class="math display">\[P(y) = \frac{1}{Z} \exp \left(-\frac{(y - \alpha)^2}{2\sigma^2} \right)\]</span></p><p>其中，<span class="math inline">\(Z\)</span> 是归一化因子，<spanclass="math inline">\(\sigma\)</span>控制分布的扩展范围。高斯分布能够较好地利用相邻标签信息，确保模型对年龄变化的连续性建模。</p><p><u><em>三角分布（TriangleDistribution）</em></u>，采用线性递减的方式，仅在一定范围内赋予相邻标签权重：<span class="math display">\[P(y) = \max \left(0, 1 - \frac{|y - \alpha|}{l} \right)\]</span></p><p>其中，<span class="math inline">\(l\)</span>决定了分布的跨度。相比高斯分布，三角分布更加局部化，确保远离原始标签的标签不会对模型产生影响。</p><h1 id="标签分布模型与学习方式">标签分布模型与学习方式</h1><p>以下是标签分布学习的建模与优化方法的基本结构：</p><p><img src="训练阶段.png" /></p><p><img src="预测阶段.png" /></p><h2 id="优化目标kl散度">优化目标：KL散度</h2>设输入空间为 $ \mathcal{X} = \mathbb{R}^d $，标签空间为 $ \mathcal{Y} = \{ y_1, y_2, \dots, y_c \} $。传统分类任务中，每个样本 $ x_i $ 仅对应一个标签，但在标签分布学习中，每个样本 $ x_i $ 关联一个 标签分布 $ P_i(y) $，表示该样本在不同标签上的分布权重。目标是学习一个条件概率分布 $ p(y|x; \theta) $，使其尽可能接近 $ P_i(y) $。采用 KL散度 作为衡量准则：<p><span class="math display">\[\theta^* = \arg\min_{\theta} \sum_i \sum_y P_i(y) \log\frac{P_i(y)}{p(y|x_i; \theta)}\]</span></p><p>由于 <span class="math inline">\(P_i(y)\)</span>在训练样本里是常数，KL 散度最小化等价于 <em>最大化对数似然（MLE）</em>：<span class="math display">\[\theta^* = \arg\max_{\theta} \sum_i \sum_y P_i(y) \log p(y|x_i; \theta)\]</span>标签分布学习框架与传统问题在以KL散度为目标函数的情况下具有密切联系：</p><ul><li>在单标签分类任务中，每个样本仅有一个确定的标签，即 $ P_i(y) = \delta(y, y_i) $。目标函数退化为经典的最大似然估计目标：</li></ul><p><span class="math display">\[\theta^* = \arg\max_{\theta} \sum_i \log p(y_i | x_i; \theta)\]</span></p><ul><li>在多标签分类任务中，每个样本 $ x_i $ 关联一个标签集合 $ Y_i $，假设$ P_i(y) $均匀分布在多个标签上。目标函数变为熵权重标签分配方法，将多标签样本转化为带权重的单标签样本，并优化最大似然目标：</li></ul><p><span class="math display">\[\theta^* = \arg\max_{\theta} \sum_i \frac{1}{|Y_i|} \sum_{y \in Y_i}\log p(y | x_i; \theta)\]</span></p><h2 id="条件概率形式最大熵模型">条件概率形式：最大熵模型</h2><h3 id="最大熵模型">最大熵模型</h3><p>确定了条件概率函数的形式，才能进行参数的调整实现KL散度的优化。论文采用了最大熵模型得到条件概率函数，该模型也是一个优化问题。目标函数是最大化熵，即在符合约束条件的前提下，使得条件分布 $ p(y|x; \theta) $ 尽可能均匀，包含最多的信息，避免引入额外的假设，从而提高模型的泛化能力。$$\max_{p(y|x; \theta)}  \sum_{x,y} \tilde{p}(x) p(y|x; \theta) \log p(y|x; \theta)$$其中，$p(y|x; \theta)$为给定输入 $ x $ 的条件概率分布，是需要优化的目标分布； $ \tilde{p}(x,y) $是经验联合分布，由训练数据估计得到；  $ \tilde{p}(x) $是经验边际分布，即 $ \tilde{p}(x) = \sum_y \tilde{p}(x,y) $； $ f_k(x,y) $为特征函数，表示输入 $ x $ 和类别 $ y $ 之间的某种特征； $ \theta $为模型参数，决定了条件概率分布的形状。</p><p>最大熵模型有两个约束条件：</p><ul><li>特征函数的期望值约束，要求模型的特征函数期望值与训练数据保持一致：</li></ul><p><span class="math display">\[\sum_{x,y} \tilde{p}(x,y) f_k(x,y) = \sum_{x,y} \tilde{p}(x) p(y|x;\theta) f_k(x,y), \quad \forall k.\]</span></p><ul><li>概率归一化约束，确保 $ p(y|x; ) $ 是一个合法的概率分布：</li></ul><p><span class="math display">\[\sum_y p(y|x; \theta) = 1, \quad \forall x.\]</span><em>特征函数会让人觉得很突兀，可以这样理解：如果特征函数表示图片中面部的皱纹数量，那么训练出的模型在期望意义上会在皱纹数量上尽可能贴合训练样本。论文里特征函数由特征提取器提供，它是一个黑盒，虽然无法直接解释其数值，但一个优秀的特征提取器会输出与目标（如年龄预测）高度相关的特征，因此这个约束可以让模型在这些预测相关的特征上进行最优拟合。</em></p><p>这个优化问题有一个解析解： <span class="math display">\[p(y|x; \theta) = \frac{1}{Z} \exp\left( \sum_k \theta_k f_k(x,y)\right),\]</span></p><p>其中</p><p><span class="math display">\[Z = \sum_y \exp\left( \sum_k \theta_k f_k(x,y) \right).\]</span></p><h3 id="解析解理论推导">解析解理论推导</h3><p>最大熵模型的优化目标是最大化条件熵：</p><p><span class="math display">\[H(P) = - \sum_{x,y} \tilde{P}(x) P(y|x) \log P(y|x)\]</span></p><p>同时满足以下约束条件：</p><ul><li>经验期望约束：</li></ul><p><span class="math display">\[E_P(f_i) = E_{\tilde{P}}(f_i), \quad i=1,2,\dots,n\]</span></p><ul><li>概率归一化条件：</li></ul><p><span class="math display">\[\sum_y P(y|x) = 1\]</span></p><p>为此，引入拉格朗日乘子 <span class="math inline">\(w_0, w_1, \dots,w_n\)</span>，构造拉格朗日函数：</p><p><span class="math display">\[L(P,w) = -H(P) + w_0 \left( 1 - \sum_y P(y|x) \right) + \sum_{i=1}^{n}w_i \left( E_{\tilde{P}}(f_i) - E_P(f_i) \right)\]</span></p><p>将其展开为具体形式：</p><p><span class="math display">\[L(P, w) = \sum_{x,y} \tilde{P}(x) P(y|x) \log P(y|x) + w_0 \left( 1 -\sum_y P(y|x) \right)\]</span></p><p><span class="math display">\[+ \sum_{i=1}^{n} w_i \left( \sum_{x,y} \tilde{P}(x,y) f_i(x,y) -\sum_{x,y} \tilde{P}(x) P(y|x) f_i(x,y) \right)\]</span></p><p>对 <span class="math inline">\(P(y|x)\)</span> 求偏导数：</p><p><span class="math display">\[\frac{\partial L(P,w)}{\partial P(y|x)} = \tilde{P}(x) \left[ \logP(y|x) + 1 \right] - \tilde{P}(x) \sum_{i=1}^{n} w_i f_i(x,y) - w_0\]</span></p><p>令偏导数为零：</p><p><span class="math display">\[\log P(y|x) + 1 = \sum_{i=1}^{n} w_i f_i(x,y) + w_0\]</span></p><p>即：</p><p><span class="math display">\[P(y|x) = \exp \left( \sum_{i=1}^{n} w_i f_i(x,y) + w_0 - 1 \right)\]</span></p><p>由于 <span class="math inline">\(P(y|x)\)</span>需要满足归一化条件：</p><p><span class="math display">\[\sum_y P(y|x) = 1\]</span></p><p>我们将 <span class="math inline">\(P(y|x)\)</span> 归一化：</p><p><span class="math display">\[\sum_y \exp \left( \sum_{i=1}^{n} w_i f_i(x,y) + w_0 - 1 \right) = 1\]</span></p><p>定义归一化因子：</p><p><span class="math display">\[Z(x) = \sum_y \exp \left( \sum_{i=1}^{n} w_i f_i(x,y) \right)\]</span></p><p>则：</p><p><span class="math display">\[\exp (w_0 - 1) = \frac{1}{Z(x)}\]</span></p><p>代入 <span class="math inline">\(P(y|x)\)</span> 的表达式：</p><p><span class="math display">\[P(y|x) = \frac{\exp \left( \sum_{i=1}^{n} w_i f_i(x,y) \right)}{Z(x)}\]</span></p><p>最终得出最大熵模型的解析解：</p><p><span class="math display">\[P(y|x) = \frac{\exp \left( \sum_{i=1}^{n} w_i f_i(x,y) \right)}{Z(x)}\]</span></p><p>其中：</p><p><span class="math display">\[Z(x) = \sum_y \exp \left( \sum_{i=1}^{n} w_i f_i(x,y) \right)\]</span></p><p>这表明最大熵模型具有指数形式，即指数族分布，其中 <spanclass="math inline">\(w_i\)</span> 是待优化的参数。</p><p><em>如果足够细心，你可以发现在推导的过程中，把解析解带入概率归一化条件的约束里定下了参数<spanclass="math inline">\(w_0\)</span>，为什么不再代入期望相等的约束条件里定下<span class="math inline">\(w_i\)</span>呢？这样还能保证满足期望相等吗？可以这样理解：如果没有特征函数期望约束，那么最终的模型在最大熵意义下是一个均匀分布，加入这个约束之后就会使一个指数型的分布函数。期望约束相当于“数据驱动的先验”，它决定了分布的形状，引导模型如何利用数据特征。它是一个“软约束”，定下了分布的形状，强制模型匹配数据的统计特性，允许一定范围的自由调整。</em></p><h2 id="优化算法iis-lld">优化算法：IIS-LLD</h2><h3 id="目标函数">目标函数</h3><p>将得到的指数型条件概率函数代入KL散度式子得到： <spanclass="math display">\[T(\theta) = \sum_{i} \sum_{y} P_i(y) \log \left( \frac{1}{Z(x_i)} \exp\left( \sum_k \theta_{y,k} g_k(x_i) \right) \right)\]</span> 展开对数： <span class="math display">\[T(\theta) = \sum_{i} \sum_{y} P_i(y) \sum_k \theta_{y,k} g_k(x_i) -\sum_i \sum_{y} P_i(y) \log Z(x_i)\]</span></p><p>由于 <span class="math inline">\(Z(x_i)\)</span> 与 <spanclass="math inline">\(y\)</span> 无关，且 <spanclass="math inline">\(P_i(y)\)</span> 对 <spanclass="math inline">\(y\)</span> 求和为 1： <spanclass="math display">\[\sum_{y} P_i(y) \log Z(x_i) = \log Z(x_i) \sum_y P_i(y) = \log Z(x_i)\]</span> 故 <span class="math display">\[T(\theta) = \sum_{i} \sum_{y} P_i(y) \sum_k \theta_{y,k} g_k(x_i) -\sum_i \log Z(x_i)\]</span> 展开 <span class="math inline">\(Z(x_i)\)</span> ：</p><p><span class="math display">\[T(\theta) = \sum_{i} \sum_{y} P_i(y) \sum_k \theta_{y,k} g_k(x_i) -\sum_i \log \sum_y \exp \left( \sum_k \theta_{y,k} g_k(x_i) \right)\]</span></p><h3 id="目标函数增量下界推导">目标函数增量下界推导</h3><p>我们希望最大化目标函数： <span class="math display">\[T(\theta) = \sum_{i,y} P_i(y) \sum_k \theta_{y,k} g_k(x_i) - \sum_i \logZ(x_i)\]</span> 其中： <span class="math display">\[Z(x_i) = \sum_y \exp \left( \sum_k \theta_{y,k} g_k(x_i) \right)\]</span></p><p>定义参数更新： <span class="math display">\[\theta^{(t+1)} = \theta^{(t)} + \Delta\]</span> 其中增量： <span class="math display">\[\delta_{y,k} = \theta_{y,k}^{(t+1)} - \theta_{y,k}^{(t)}\]</span></p><p>增量后的归一化因子： <span class="math display">\[Z^*(x_i) = \sum_y \exp \left( \sum_k (\theta_{y,k} + \delta_{y,k})g_k(x_i) \right)\]</span></p><p>目标函数增量： <span class="math display">\[T(\theta + \Delta) - T(\theta) =\sum_{i,y} P_i(y) \sum_k \delta_{y,k} g_k(x_i) - \sum_i \log\frac{Z^*(x_i)}{Z(x_i)}\]</span></p><p>计算后一项： <span class="math display">\[\frac{Z^*(x_i)}{Z(x_i)} = \frac{\sum_y \exp \left( \sum_k (\theta_{y,k}+ \delta_{y,k}) g_k(x_i) \right)}{\sum_y \exp \left( \sum_k \theta_{y,k} g_k(x_i) \right)}\]</span></p><p>提取原归一化项： <span class="math display">\[\frac{Z^*(x_i)}{Z(x_i)} =\sum_y \frac{\exp \left( \sum_k \theta_{y,k} g_k(x_i) \right)}{Z(x_i)}\exp \left( \sum_k \delta_{y,k} g_k(x_i) \right)\]</span></p><p>由于： <span class="math display">\[p(y | x_i; \theta) = \frac{\exp \left( \sum_k \theta_{y,k} g_k(x_i)\right)}{Z(x_i)}\]</span></p><p>所以： <span class="math display">\[\frac{Z^*(x_i)}{Z(x_i)} = \sum_y p(y | x_i; \theta) \exp \left( \sum_k\delta_{y,k} g_k(x_i) \right)\]</span></p><p>使用对数不等式放缩： <span class="math display">\[-\log x \geq 1 - x\]</span></p><p>应用到目标函数增量： <span class="math display">\[-\sum_i \log \sum_y p(y | x_i; \theta) \exp \left( \sum_k \delta_{y,k}g_k(x_i) \right)\geq\sum_i \left( 1 - \sum_y p(y | x_i; \theta) \exp \left( \sum_k\delta_{y,k} g_k(x_i) \right) \right)\]</span></p><p>故 <span class="math display">\[T(\theta + \Delta) - T(\theta) \geq\sum_{i,y} P_i(y) \sum_k \delta_{y,k} g_k(x_i) + n - \sum_i \sum_y p(y |x_i; \theta) \exp \left( \sum_k \delta_{y,k} g_k(x_i) \right)\]</span></p><p>下面使用 Jensen不等式 继续放缩，</p><p>定义： <span class="math display">\[g^\#(x_i) = \sum_k |g_k(x_i)|\]</span></p><p>由于指数函数是凸函数，根据 Jensen不等式，令 $ s(g_k(x_i)) $ 为 $g_k(x_i) $ 的符号函数： <span class="math display">\[\sum_k \frac{|g_k(x_i)|}{g^\#(x_i)} \exp \left( \delta_{y,k} s(g_k(x_i))g^\#(x_i) \right)\geq\exp \left( \sum_k \frac{|g_k(x_i)|}{g^\#(x_i)} \delta_{y,k} g^\#(x_i)\right)\]</span></p><p>即 <span class="math display">\[\sum_k \frac{|g_k(x_i)|}{g^\#(x_i)} \exp \left( \delta_{y,k} s(g_k(x_i))g^\#(x_i) \right)\geq\exp \left( \sum_k \delta_{y,k} |g_k(x_i)| \right)\]</span></p><p>调换方向： <span class="math display">\[-\exp \left( \sum_k \delta_{y,k} |g_k(x_i)| \right)\geq-\sum_k \frac{|g_k(x_i)|}{g^\#(x_i)} \exp \left( \delta_{y,k}s(g_k(x_i)) g^\#(x_i) \right)\]</span></p><p>代入前面的下界： <span class="math display">\[T(\theta + \Delta) - T(\theta) \geq\sum_{i,y} P_i(y) \sum_k \delta_{y,k} g_k(x_i) + n - \sum_{i, y} p(y |x_i; \theta)\sum_k \frac{|g_k(x_i)|}{g^\#(x_i)} \exp \left( \delta_{y,k}s(g_k(x_i)) g^\#(x_i) \right)\]</span></p><p>我们将右侧表达式定义为： <span class="math display">\[\mathcal{A}(\Delta | \theta) =\sum_{i,y} P_i(y) \sum_k \delta_{y,k} g_k(x_i) + n - \sum_{i, y} p(y |x_i; \theta)\sum_k \frac{|g_k(x_i)|}{g^\#(x_i)} \exp \left( \delta_{y,k}s(g_k(x_i)) g^\#(x_i) \right)\]</span></p><p>即 <span class="math display">\[T(\theta + \Delta) - T(\theta) \geq \mathcal{A}(\Delta | \theta)\]</span></p><h3 id="iis-lld算法">IIS-LLD算法</h3><p><span class="math inline">\(T(\theta)\)</span> 通过 Jensen 不等式的放缩，使得<span class="math inline">\(\mathcal{A}(\Delta |\theta)\)</span> 各个维度变得相互独立，可以逐个维度独立优化。</p><p>优化过程即对 <span class="math inline">\(\mathcal{A}(\Delta |\theta)\)</span> 求导，并令梯度为 0，得到每个维度的增量：</p><p><span class="math display">\[\frac{\partial \mathcal{A}(\Delta | \theta)}{\partial \delta_{y,k}} =\sum_{i} P_i(y) g_k(x_i) - \sum_{i} p(y | x_i; \theta) g_k(x_i)\exp(\delta_{y,k} s(g_k(x_i)) g^\#(x_i)) = 0.\]</span></p><p>此方程可以通过数值方法（如 Gauss-Newton 方法）逐个求解每个维度的增量<spanclass="math inline">\(\delta_{y,k}\)</span>，最终完成迭代更新。算法流程如下：</p><p><img src="IIS-LLD算法流程图.png" /></p><p><em>经典的IIS算法要求特征函数非负，论文里为了保证标签分布模型的灵活性，取消了这一限制，所以命名为IIS-LLD算法。从算法上来看也能得到最后的解，不过从数值方法的角度来看，这会带来不稳定的风险。</em></p><h1 id="实验和结果分析">实验和结果分析</h1><p>实验使用了 <em>FG-NET Aging Database</em>，该数据集包含1002张面部图像，来自82 名受试者，年龄范围在0-69岁之间。每名受试者的照片数量在6-18张之间，数据集中包含不同的光照、表情和姿态变化。由于年龄较大的样本较少，研究者采用了<em>Leave-One-Person-Out（LOPO）交叉验证</em>，即每次选取一名受试者的所有照片作为测试集，其余受试者的照片作为训练集，重复82轮计算最终结果。实验使用 <em>Mean Absolute Error（MAE）</em>作为误差度量，计算预测年龄与真实年龄之间的平均绝对误差。</p><p>特征提取方法基于 <em>外观模型（AppearanceModel）</em>。该模型首先模型检测人脸关键点，通过<em>PCA（主成分分析）</em>对关键点坐标进行降维；然后对人脸图像进行标准化，使其符合统一的形状；再对标准化后的灰度图进行PCA降维，提取纹理特征；最终形状和纹理特征被结合成一个特征向量。在 PCA降维过程中，研究者选择保留95% 的数据变异性，截取了前200个主成分。</p><p>以下是实验中用到的方法和对应的关键参数：</p><!DOCTYPE html><html lang="zh-CN"><head>    <meta charset="UTF-8">    <meta name="viewport" content="width=device-width, initial-scale=1.0">    <title>三线表</title>    <style>        table {            width: 80%;            margin: 20px auto;            border-collapse: collapse;        }        table caption {            font-size: 1.5em;            margin-bottom: 10px;        }            table thead > tr > th {            border-top: 3px solid #000;            border-bottom: 2px solid #000;            padding: 4px;            text-align: center;            background-color: #f4f4f4;        }            table tbody > tr > td {            padding: 2px;            text-align: center;            border-bottom: 1px solid #ddd;        }            table tbody > tr:last-child {            border-bottom: 3px solid #000;        }            table td:last-child {            border-right: none;        }            table {            border: none;        }    </style></head><body>    <table>        <thead>            <tr>                <th>方法</th>                <th>关键参数</th>            </tr>        </thead>        <tbody>            <tr><td>IIS-LLD (Gaussian)</td><td>高斯分布，标准差 \( \sigma = 1 \)</td></tr>            <tr><td>IIS-LLD (Triangle)</td><td>三角分布，底边长度 \( l = 6 \)</td></tr>            <tr><td>IIS-LLD (Single)</td><td>传统单标签，仅用真实年龄</td></tr>            <tr><td>AGES</td><td>老化模式子空间维度 = 20</td></tr>            <tr><td>WAS</td><td>不需要设置参数</td></tr>            <tr><td>AAS</td><td>误差阈值 = 3，年龄段 = (0-9, 10-19, 20-39, 40-69)</td></tr>            <tr><td>KNN</td><td>邻近样本数 \( K = 30 \)</td></tr>            <tr><td>BP (神经网络)</td><td>隐藏层神经元 = 100</td></tr>            <tr><td>C4.5 (决策树)</td><td>使用 J4.8 版本，默认参数</td></tr>            <tr><td>SVM</td><td>核函数：RBF，核宽度 = 1</td></tr>            <tr><td>HumanA (灰度图像)</td><td>仅展示去除背景的灰度脸部图像</td></tr>            <tr><td>HumanB (彩色图像)</td><td>展示完整的彩色图像，包括头发、服饰、背景等</td></tr>        </tbody>    </table></body></html><p>实验结果如下所示，表现优于HumanA使用紫色柱形，优于HumanB加上竖直虚线：</p><p><img src="Age_Estimation_Results.png" /></p><p><em>从图中可以看出来，即使没有使用标签分布，IIS-LLD算法表现已经十分优秀，这得益于最大熵模型的良好性质，标签分布达到了锦上添花的效果，使得算法性能超过HumanB。高斯分布覆盖了所有年龄，而三角分布只覆盖了临近的年龄，单标签只覆盖本身的年龄，它们的表现优度依次递减。</em></p><p>论文还对两种标签分布的参数<spanclass="math inline">\(\sigma\)</span>、<spanclass="math inline">\(l\)</span>进行了调整，测试对应的MAE，结果如下：</p><p><img src="deviation.png" /></p><p><em>参数越大，意味着分布约分散。两个分布的参数为0时，都退化为单标签。在临近标签对真实标签做贡献但又不至于“喧宾夺主”间需要保持平衡，才能达到最好的效果。</em></p><p>接下来是对三种IIS-LLD算法和baseline中表现最好的AGES模型在各个年龄段内的MAE做可视化，n表示该年龄段内的样本数量。</p><p><img src="MAE_in_Different_Age_Ranges.png" /></p><p><em>在数据丰富低年龄段内，IIS-LLD模型稍逊于专门做面部年龄估计的AGES模型；而在数据稀疏的高年龄段内IIS-LLD模型明显优于AGES模型。这验证了论文用标签分布弥补数据不足缺陷的想法。</em></p><p>作者最后给出了标签分布存在应用价值的三个场景，帮助处理标签不确定性和数据稀缺问题：实例初始标签即为类分布；类之间存在强相关性；不同来源的标签存在争议。</p>]]></content>
+      
+      
       <categories>
-        <category>精读解析</category>
+          
+          <category> 精读解析 </category>
+          
       </categories>
-      <tags>
-        <tag>标签分布学习</tag>
-      </tags>
-  </entry>
+      
+      
+        <tags>
+            
+            <tag> 标签分布学习 </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+  
+  
 </search>
