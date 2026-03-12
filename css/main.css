@@ -1278,7 +1278,7 @@ pre code {
     vertical-align: middle;
   }
   .links-of-author a::before {
-    background: #e32d11;
+    background: #ff08ff;
     display: inline-block;
     margin-right: 3px;
     transform: translateY(-2px);
@@ -2832,5 +2832,41 @@ header.header {
   }
 }
 .archive .collection-title {
+  display: none !important;
+}
+.highlight,
+figure.highlight {
+  max-height: 400px;
+  overflow-y: auto;
+  overflow-x: auto;
+}
+.highlight::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+.highlight::-webkit-scrollbar-thumb {
+  background: rgba(128,128,128,0.4);
+  border-radius: 3px;
+}
+.post-category-tag {
+  display: inline-block;
+  font-size: 0.75em;
+  padding: 1px 8px;
+  margin-left: 6px;
+  border-radius: 10px;
+  background: rgba(0,0,0,0.06);
+  color: #555;
+  text-decoration: none;
+  vertical-align: middle;
+  border: 1px solid rgba(0,0,0,0.15);
+}
+.post-category-tag:hover {
+  background: rgba(0,0,0,0.12);
+  color: #222;
+}
+.sidebar-inner:has(.post-toc-wrap li) .sidebar-nav-overview {
+  display: none !important;
+}
+.sidebar-inner:has(.post-toc-wrap li) .site-overview-wrap {
   display: none !important;
 }
