@@ -1,0 +1,18 @@
+#footer
+    #side-button.button-hover
+        i.fas.fa-arrow-right
+    .right-content
+        if theme.busuanzi.enable
+            include ./count/busuanzi.pug
+        if theme.footer.since.enable
+            - var now = new Date()
+            - var nowYear = now.getFullYear()
+            - let copyrightSince
+            if theme.footer.since.year != nowYear
+                - copyrightSince = `&copy;${theme.footer.since.year} ～ ${nowYear} By ${config.author}`
+            else
+                - copyrightSince = `&copy;${nowYear} By ${config.author}`
+            .copyright!= copyrightSince
+        if theme.footer.beian.enable
+            .beian
+                a(rel='noopener' href='https://beian.miit.gov.cn/' target='_blank') 备案号:#{theme.footer.beian.icp}
