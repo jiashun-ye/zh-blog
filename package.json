@@ -3,10 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-   "build": "hexo generate",
-   "clean": "hexo clean",
+    "build": "hexo generate",
+    "clean": "hexo clean",
     "deploy": "hexo deploy",
-   "server": "hexo server",
+    "server": "hexo server",
     "backup": "git add -A && git commit -m \"backup\" && git push origin source",
     "pub": "npm run backup && hexo clean && hexo g && hexo d"
 },
