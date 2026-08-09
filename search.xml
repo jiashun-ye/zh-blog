@@ -1,57 +1,377 @@
 <?xml version="1.0" encoding="utf-8"?>
-<search> 
-  
-  
-    
-    <entry>
-      <title>精读解析 | 稀疏性条件能量标签分布学习：概率建模的改进</title>
-      <link href="/zh-blog/2025/10/08/%E7%B2%BE%E8%AF%BB%E8%A7%A3%E6%9E%90-%E7%A8%80%E7%96%8F%E6%80%A7%E6%9D%A1%E4%BB%B6%E8%83%BD%E9%87%8F%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%E5%AD%A6%E4%B9%A0%EF%BC%9A%E6%A6%82%E7%8E%87%E5%BB%BA%E6%A8%A1%E7%9A%84%E6%94%B9%E8%BF%9B/"/>
-      <url>/zh-blog/2025/10/08/%E7%B2%BE%E8%AF%BB%E8%A7%A3%E6%9E%90-%E7%A8%80%E7%96%8F%E6%80%A7%E6%9D%A1%E4%BB%B6%E8%83%BD%E9%87%8F%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%E5%AD%A6%E4%B9%A0%EF%BC%9A%E6%A6%82%E7%8E%87%E5%BB%BA%E6%A8%A1%E7%9A%84%E6%94%B9%E8%BF%9B/</url>
-      
-        <content type="html"><![CDATA[<p>本文精读 Geng 等《Sparsity Conditional Energy Label DistributionLearning for AgeEstimation》(2016)，从条件能量模型出发，给出将对二值隐变量的指数和化为“门控乘积”的闭式推导；构建KL 拟合 + 稀疏门控 的联合目标，推导 <spanclass="math inline">\(b_j\)</span>、<spanclass="math inline">\(u_{jr}\)</span>、<spanclass="math inline">\(\omega_r\)</span> 的显式梯度及 SGD更新；并对实验进行了总结和分析。</p><span id="more"></span><p><em>论文链接：<ahref="https://www.ijcai.org/Proceedings/16/Papers/322.pdf">SparsityConditional Energy Label Distribution Learning for AgeEstimation</a></em></p><p><em>本文前置文章链接：</em></p><p><em><ahref="https://jiashun-ye.github.io/zh-blog/2025/03/16/%E7%B2%BE%E8%AF%BB%E8%A7%A3%E6%9E%90-%E4%BB%8E%E5%8D%95%E4%B8%80%E6%A0%87%E7%AD%BE%E5%88%B0%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%EF%BC%9A%E9%9D%A2%E9%83%A8%E5%B9%B4%E9%BE%84%E4%BC%B0%E8%AE%A1%E7%9A%84%E6%96%B0%E6%96%B9%E6%B3%95">精读解析|从单一标签到标签分布：面部年龄估计的新方法</a></em></p><p>SCE-LDL 从最大熵下的 IIS-LDL迈向“能量＋稀疏门控”的细粒度概率建模，在保持标签分布学习思想的同时，显著提升了表达力与鲁棒性。</p><h1 id="稀疏性条件能量标签分布学习">稀疏性条件能量标签分布学习</h1><h2 id="条件概率函数推导">条件概率函数推导</h2><p>条件能量模型定义为</p><p><span class="math display">\[p(y\midx)=\frac{\sum_{h}\exp\{-E(x,y,h)\}}{\sum_{y}\sum_{h}\exp\{-E(x,y,h)\}},\]</span></p><p>其中 <span class="math inline">\(h\in\{0,1\}^R\)</span>是二值隐向量。能量函数写作</p><p><span class="math display">\[E(x,y,h)= -\sum_{r=1}^{R} h_rf_r(x;\omega_r)-\sum_{r=1}^{R}\sum_{j=1}^{l} h_r u_{jr}y_j-\sum_{j=1}^{l} b_j y_j.\]</span></p><p>各符号含义如下：</p><ul><li><span class="math inline">\(x\)</span>：输入特征向量，论文实验中采用BIF（Bio-Inspired Features）等视觉特征。<br /></li><li><span class="math inline">\(y\)</span>：年龄索引向量，为 one-hot形式；若样本真实年龄为第 <span class="math inline">\(j\)</span>类，则仅有 <span class="math inline">\(y_j=1\)</span>，其余为 <spanclass="math inline">\(0\)</span>。<br /></li><li><spanclass="math inline">\(h\in\{0,1\}^R\)</span>：二值隐向量，长度为 <spanclass="math inline">\(R\)</span>，可理解为一组“特征抽取器”的门控开关。<br /></li><li><spanclass="math inline">\(R\)</span>：隐变量（或特征抽取器）数量，由模型设计者设定；<spanclass="math inline">\(l\)</span> 为年龄类别总数。<br /></li><li><span class="math inline">\(f_r(x;\omega_r)\)</span>：第 <spanclass="math inline">\(r\)</span> 个特征抽取器对输入 <spanclass="math inline">\(x\)</span> 的响应，<spanclass="math inline">\(\omega_r\)</span> 为其参数，可为线性、二次或Sigmoid 形式。<br /></li><li><span class="math inline">\(u_{jr}\)</span>：连接隐单元 <spanclass="math inline">\(r\)</span> 与年龄 <spanclass="math inline">\(j\)</span>的权重，控制该抽取器对该年龄的作用强度。<br /></li><li><span class="math inline">\(b_j\)</span>：年龄 <spanclass="math inline">\(j\)</span> 的偏置项。</li></ul><p>整体参数集合为 <spanclass="math inline">\(\theta=\{b_j,u_{jr},\omega_r\}\)</span>。<br />在后续条件概率中，<spanclass="math inline">\(\exp\{f_r(x;\omega_r)+u_{jr}\}\)</span> 可视作“第<span class="math inline">\(r\)</span> 个抽取器在年龄 <spanclass="math inline">\(j\)</span> 上的激活”。当 <spanclass="math inline">\(f_r(x;\omega_r)+u_{jr}\ll0\)</span> 时该值接近0，表示抽取器与该年龄不匹配而被抑制；当其较大时，激活值显著，乘性放大该通道贡献。<spanclass="math inline">\(h_r=1\)</span> 表示该抽取器“开门参与”，<spanclass="math inline">\(h_r=0\)</span>表示“关闭”，因此整个模型体现出由多个门控单元组成的能量结构。</p><p>我们关心的是某个固定年龄 <span class="math inline">\(j\)</span>的条件概率。利用独热性质，只保留 <spanclass="math inline">\(y_j=1\)</span> 的项，得到 <spanclass="math display">\[p(y_j=1\mid x)=\frac{\sum_{h}\exp\!\Big(\sum_{r=1}^{R}h_r[f_r(x;\omega_r)+u_{jr}]+b_j\Big)}{\sum_{k=1}^{l}\sum_{h}\exp\!\Big(\sum_{r=1}^{R}h_r[f_r(x;\omega_r)+u_{kr}]+b_k\Big)}.\]</span></p><p>关键在于如何把对向量 <span class="math inline">\(h\)</span>的求和化简。记 <spanclass="math inline">\(A_{rj}=f_r(x;\omega_r)+u_{jr}\)</span>。由于能量函数对<span class="math inline">\(h_r\)</span> 是可加的，没有交互项，所以<span class="math display">\[\exp\!\Big(\sum_{r}h_rA_{rj}\Big)=\prod_{r}\exp(h_rA_{rj}).\]</span></p><p>于是分子中的和可以展开为嵌套二值求和：</p><p><span class="math display">\[\sum_{h_1=0}^{1}\cdots\sum_{h_R=0}^{1}\;\prod_{r=1}^{R}\exp(h_rA_{rj}).\]</span></p><p>这里要仔细理解：我们可以从最内层变量 <spanclass="math inline">\(h_R\)</span> 开始计算。把与 <spanclass="math inline">\(h_R\)</span> 无关的部分当作常数，得到</p><p><span class="math display">\[\sum_{h_R}\exp(h_RA_{Rj})=1+e^{A_{Rj}}.\]</span></p><p>因此最里层的和收缩成一个常数 <spanclass="math inline">\((1+e^{A_{Rj}})\)</span>，可以提到外面。接着考虑<span class="math inline">\(h_{R-1}\)</span>，同样得到一个因子 <spanclass="math inline">\((1+e^{A_{R-1,j}})\)</span>。如此从内到外不断“剥皮”，每一步都会留下一个括号项<spanclass="math inline">\((1+e^{A_{rj}})\)</span>。最后整个求和就变为</p><p><span class="math display">\[\sum_{h}\prod_{r=1}^{R}\exp(h_rA_{rj})=\prod_{r=1}^{R}(1+e^{A_{rj}}).\]</span></p><p>同理，分母对每个年龄 <span class="math inline">\(k\)</span>都有相应的结果 <spanclass="math inline">\(\prod_{r=1}^{R}(1+e^{A_{rk}})\)</span>。因此条件概率闭式为</p><p><span class="math display">\[p(y_j=1\mid x)=\frac{e^{b_j}\prod_{r=1}^{R}\big[1+\exp\{f_r(x;\omega_r)+u_{jr}\}\big]}{\sum_{k=1}^{l}e^{b_k}\prod_{r=1}^{R}\big[1+\exp\{f_r(x;\omega_r)+u_{kr}\}\big]}.\]</span></p><p>这个推导表明，原本需要对 <span class="math inline">\(2^R\)</span>种隐变量组合求和的问题，最终化简成了 <spanclass="math inline">\(R\)</span> 个括号的乘积。直观理解是：每个隐单元<span class="math inline">\(h_r\)</span> 相当于一个开关，当 <spanclass="math inline">\(f_r(x;\omega_r)+u_{jr}\ll 0\)</span>时，对应括号近似为 1，相当于关门不发挥作用；当它较大时，括号项大于1，乘性放大贡献。所有隐单元的组合就形成了“0 或&gt;1”的门控乘积，带来分布式表征的能力，也为后续的稀疏性约束提供了基础。</p><h2 id="更新算法">更新算法</h2><p>模型训练的目标是使预测的标签分布 <span class="math inline">\(p(y\midx)\)</span> 尽量逼近标注分布 <spanclass="math inline">\(D=\{d_j\}_{j=1}^{l}\)</span>，同时引入稀疏约束鼓励隐单元处于“关闭”状态。给定训练集<spanclass="math inline">\(\{(x^{(i)},D^{(i)})\}_{i=1}^{N}\)</span>，定义目标函数（最大化）为</p><p><span class="math display">\[\mathcal{L}(\theta)=\sum_{i=1}^{N}\sum_{j=1}^{l} d^{(i)}_j \log p(y_j=1\mid x^{(i)};\theta)+\lambda \sum_{i=1}^{N}\sum_{j=1}^{l} d^{(i)}_j \sum_{r=1}^{R}p(h_r=0\mid x^{(i)},y_j=1),\]</span></p><p>其中 <spanclass="math inline">\(\theta=\{b_j,u_{jr},\omega_r\}\)</span>，<spanclass="math inline">\(\lambda\)</span> 为稀疏项权重，且有 <spanclass="math inline">\(p(h_r=0\midx,y_j=1)=\sigma(-a_{jr}(x))=1-\sigma(a_{jr}(x))\)</span>，其中 <spanclass="math inline">\(\sigma(z)=1/(1+e^{-z})\)</span>，<spanclass="math inline">\(a_{jr}(x)=f_r(x;\omega_r)+u_{jr}\)</span>。条件概率<span class="math inline">\(p(y_j=1\mid x)\)</span> 的闭式表达为</p><p><span class="math display">\[p(y_j=1\mid x)=\frac{e^{b_j}\prod_{r=1}^{R}\big[1+e^{a_{jr}(x)}\big]}{\sum_{k=1}^{l} e^{b_k}\prod_{r=1}^{R}\big[1+e^{a_{kr}(x)}\big]}.\]</span></p><p>对单样本 <span class="math inline">\((x,D)\)</span>，定义 <spanclass="math inline">\(\ell_j(x)=\log p(y_j=1\midx)=b_j+\sum_{r}\log(1+e^{a_{jr}(x)})-\log Z(x)\)</span>，其中 <spanclass="math inline">\(Z(x)=\sum_{k}e^{b_k}\prod_{r}(1+e^{a_{kr}(x)})\)</span>。由此可得对数似然项的梯度。根据<span class="math inline">\(\partial\log(1+e^z)/\partialz=\sigma(z)\)</span> 和 softmax 性质，有</p><p><span class="math display">\[\frac{\partial \ell_j}{\partial b_k}=\mathbf{1}[k=j]-p(y_k=1\midx),\qquad\frac{\partial \ell_j}{\partial u_{kr}}=\big(\mathbf{1}[k=j]-p(y_k=1\midx)\big)\sigma(a_{kr}(x)),\]</span> <span class="math display">\[\frac{\partial \ell_j}{\partial \omega_r}=\Big(\sigma(a_{jr}(x))-\sum_{k}p(y_k=1\midx)\sigma(a_{kr}(x))\Big)\frac{\partial f_r(x;\omega_r)}{\partial\omega_r}.\]</span></p><p>稀疏正则项的梯度则为 <span class="math display">\[\frac{\partial}{\partial u_{kr}}\sigma(-a_{kr}(x))=-\sigma(a_{kr}(x))(1-\sigma(a_{kr}(x))),\qquad\frac{\partial}{\partial \omega_r}\sigma(-a_{jr}(x))=-\sigma(a_{jr}(x))(1-\sigma(a_{jr}(x)))\frac{\partialf_r(x;\omega_r)}{\partial \omega_r}.\]</span> 该正则项不涉及 <spanclass="math inline">\(b_k\)</span>，因此其对偏置的导数为 0。</p><p>将两部分合并，并对样本与标签分布加权求和后，总梯度写作： <spanclass="math display">\[\frac{\partial \mathcal{L}}{\partial b_k}=\sum_{i}\sum_{j}d^{(i)}_j\big(\mathbf{1}[k=j]-p_k^{(i)}\big),\]</span> <span class="math display">\[\frac{\partial \mathcal{L}}{\partial u_{kr}}=\sum_{i}\sum_{j}d^{(i)}_j\Big[\big(\mathbf{1}[k=j]-p_k^{(i)}\big)\sigma(a^{(i)}_{kr})\Big]-\lambda\sum_{i}d^{(i)}_k\,\sigma(a^{(i)}_{kr})(1-\sigma(a^{(i)}_{kr})),\]</span> <span class="math display">\[\frac{\partial \mathcal{L}}{\partial \omega_r}=\sum_{i}\sum_{j} d^{(i)}_j\Big[\Big(\sigma(a^{(i)}_{jr})-\sum_{k}p_k^{(i)}\,\sigma(a^{(i)}_{kr})\Big)\frac{\partialf_r(x^{(i)};\omega_r)}{\partial \omega_r}\Big]-\lambda\sum_{i}\sum_{j}d^{(i)}_j\,\sigma(a^{(i)}_{jr})(1-\sigma(a^{(i)}_{jr}))\frac{\partialf_r(x^{(i)};\omega_r)}{\partial \omega_r}.\]</span></p><p>实际训练中采用小批量随机梯度上升（或对 <spanclass="math inline">\(-\mathcal{L}\)</span> 做下降）更新参数： <spanclass="math display">\[b_k \leftarrow b_k+\eta\,\frac{\partial \mathcal{L}}{\partialb_k},\qquadu_{kr} \leftarrow u_{kr}+\eta\,\frac{\partial \mathcal{L}}{\partialu_{kr}},\qquad\omega_r \leftarrow \omega_r+\eta\,\frac{\partial \mathcal{L}}{\partial\omega_r},\]</span> 其中 <span class="math inline">\(\eta\)</span> 为学习率。当<span class="math inline">\(f_r(x;\omega_r)=\omega_r^\topx+w_{r0}\)</span> 时，梯度 <span class="math inline">\(\partialf_r/\partial \omega_r=x\)</span>，<span class="math inline">\(\partialf_r/\partialw_{r0}=1\)</span>，可将偏置并入权重向量一起更新。论文实验中采用线性抽取器、学习率约<span class="math inline">\(0.1\)</span>、迭代 30轮即可收敛。整个算法通过在 KL拟合的对数似然梯度上叠加稀疏正则项，实现了“概率匹配 +隐单元稀疏”的双重优化，使每个隐单元学会在合适的样本下被激活，在不匹配样本下自然关闭，从而形成稳定的稀疏门控结构。</p><h1 id="实验与结果分析">实验与结果分析</h1><p>实验主要在 MORPH II 和 ChaLearn Apparent Age两个公开人脸年龄估计数据集上进行。MORPH II 共包含 55,132张人脸图像，年龄范围 16–77 岁，种族比例约为非裔 77%、欧裔 19%、其他4%。图像经过人脸检测与对齐后，提取 BIF（Bio-InspiredFeatures）特征，并通过 MFA（Marginal Fisher Analysis）降维到 200维，再进行零均值与单位方差归一化。ChaLearn 数据集包含 3,615张图像（2,479 用于训练，1,136 用于验证），同样采用 DPM检测与五点对齐，提取 7,152 维 BIF 特征但不降维。标签分布的构造方式为：在MORPH 数据中，以真实年龄为均值、标准差为 1 的高斯分布生成标签分布 <spanclass="math inline">\(D_j\)</span>；在 ChaLearn数据中，使用官方提供的均值和标准差代入相同的高斯公式生成分布。评测指标包括平均绝对误差（MAE）与累积精度曲线CS@m（即误差小于 <span class="math inline">\(m\)</span>岁的样本比例）。实验对比了多种经典标签分布学习方法，包括CE-LDL、BFGS-LDL、CPNN-LDL、KPLS 以及传统回归方法OHR，统一在相同特征与分布生成策略下进行。</p><p>结果显示，SCE-LDL 在两个数据集上均取得最优性能。于 MORPH 上，MAE 为3.858±0.090，显著优于 CE-LDL (4.146)、BFGS-LDL (4.872)、CPNN-LDL(4.705)、KPLS (4.442) 以及 OHR (7.085)；在 ChaLearn 上，MAE 达到6.432，相比 CE-LDL (6.708) 与 KPLS (6.841) 均有明显提升，更远超 CPNN-LDL(12.979)。CS 曲线（误差阈值从 0 到 10）进一步表明，SCE-LDL在低误差区间曲线更靠上，说明模型在高精度预测时优势更明显。灵敏度实验分析了隐单元数<span class="math inline">\(R\)</span> 和稀疏系数 <spanclass="math inline">\(\lambda\)</span> 的影响：当 <spanclass="math inline">\(R\)</span> 在 50–175 之间变化时，MAE 变化平滑，150左右最优但对参数不敏感；<span class="math inline">\(\lambda\)</span> 在0.001–0.01 范围内性能稳定，取 0.005时表现最佳。实验还表明线性抽取器已足以实现较好性能，非线性形式提升有限而计算开销增大。整体分析认为，SCE-LDL之所以优于其它 LDL方法，是因为通过隐变量门控和稀疏约束实现了“选择性激活”的特征表达：当特征与年龄匹配时隐单元被激活、对概率产生乘性放大，而不匹配特征则被自然抑制，从而显著提升模型鲁棒性。特别是在ChaLearn 这类野外条件复杂、光照表情变化大的数据集上，SCE-LDL的门控机制有效过滤了噪声特征，使预测分布更集中、更稳定。总体来看，这种能量建模结合稀疏门控的概率学习方式，不仅在性能上优于已有LDL方法，也揭示了标签分布学习在表征层可通过隐变量能量结构进一步提升表达能力的方向。</p>]]></content>
-      
-      
+<search>
+  <entry>
+    <title>Transformer：用注意力重构序列建模</title>
+    <url>/zh-blog/2026/08/08/Transformer%EF%BC%9A%E7%94%A8%E6%B3%A8%E6%84%8F%E5%8A%9B%E9%87%8D%E6%9E%84%E5%BA%8F%E5%88%97%E5%BB%BA%E6%A8%A1/</url>
+    <content><![CDATA[<span id="more"></span>
+]]></content>
       <categories>
-          
-          <category> 精读解析 </category>
-          
+        <category>论文研析</category>
       </categories>
-      
-      
-        <tags>
-            
-            <tag> 标签分布学习 </tag>
-            
-        </tags>
-      
-    </entry>
-    
-    
-    
-    <entry>
-      <title>精读解析 | 深度标签分布学习 2.0：分布与期望的联合优化</title>
-      <link href="/zh-blog/2025/10/07/%E7%B2%BE%E8%AF%BB%E8%A7%A3%E6%9E%90-%E6%B7%B1%E5%BA%A6%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%E5%AD%A6%E4%B9%A0-2-0%EF%BC%9A%E5%88%86%E5%B8%83%E4%B8%8E%E6%9C%9F%E6%9C%9B%E7%9A%84%E8%81%94%E5%90%88%E4%BC%98%E5%8C%96/"/>
-      <url>/zh-blog/2025/10/07/%E7%B2%BE%E8%AF%BB%E8%A7%A3%E6%9E%90-%E6%B7%B1%E5%BA%A6%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%E5%AD%A6%E4%B9%A0-2-0%EF%BC%9A%E5%88%86%E5%B8%83%E4%B8%8E%E6%9C%9F%E6%9C%9B%E7%9A%84%E8%81%94%E5%90%88%E4%BC%98%E5%8C%96/</url>
-      
-        <content type="html"><![CDATA[<p>本文精读 Geng 等《Age Estimation Using Expectation of LabelDistributionLearning》(2018)，从方法、理论、工程与实验四方面展开。先推导高斯标签分布的CDF，并证明 Ranking≈1−CDF的极限等价，统一两路线；再给出联合学习框架（KL+L1）及 logits梯度，阐明与 MAE 的对齐；随后解析 Thin/TinyAgeNet与混合池化的轻量化；最后概括实验设置与结论，解释“分布+期望”的稳健增益。</p><span id="more"></span><p><em>论文链接：<ahref="https://www.ijcai.org/Proceedings/2018/0099.pdf">Age EstimationUsing Expectation of Label Distribution Learning</a></em></p><p><em>本文前置文章链接：</em></p><p><em><ahref="https://jiashun-ye.github.io/zh-blog/2025/03/16/%E7%B2%BE%E8%AF%BB%E8%A7%A3%E6%9E%90-%E4%BB%8E%E5%8D%95%E4%B8%80%E6%A0%87%E7%AD%BE%E5%88%B0%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%EF%BC%9A%E9%9D%A2%E9%83%A8%E5%B9%B4%E9%BE%84%E4%BC%B0%E8%AE%A1%E7%9A%84%E6%96%B0%E6%96%B9%E6%B3%95">精读解析|从单一标签到标签分布：面部年龄估计的新方法</a></em></p><p><em><ahref="https://jiashun-ye.github.io/zh-blog/2025/10/06/%E7%B2%BE%E8%AF%BB%E8%A7%A3%E6%9E%90-%E6%B7%B1%E5%BA%A6%E6%A0%87%E7%AD%BE%E5%88%86%E5%B8%83%E5%AD%A6%E4%B9%A0%EF%BC%9A%E5%88%86%E5%B8%83%E7%9B%91%E7%9D%A3%E4%B8%8E%E5%AE%9E%E7%94%A8%E6%9E%84%E9%80%A0/">精读解析|深度标签分布学习：分布监督与实用构造</a></em></p><h1 id="分布与期望的联合优化">分布与期望的联合优化</h1><h2 id="ranking本质上在学习标签分布">Ranking本质上在学习标签分布</h2><p>设年龄随机变量 <span class="math inline">\(A\sim\mathcalN(y,\sigma^2)\)</span>，其高斯标签分布密度为 <spanclass="math display">\[f_{y,\sigma}(t)=\frac{1}{\sigma\sqrt{2\pi}}\exp\!\Big(-\frac{(t-y)^2}{2\sigma^2}\Big).\]</span></p><p>在离散刻度 <span class="math inline">\(l_k\)</span>处的累积分布取值为 <span class="math display">\[c_k \;=\; F(l_k)\;=\;\int_{-\infty}^{\,l_k} f_{y,\sigma}(t)\,dt.\]</span> 作代换 <spanclass="math inline">\(u=\frac{t-y}{\sigma\sqrt{2}}\)</span>（因此 <spanclass="math inline">\(dt=\sigma\sqrt{2}\,du\)</span>），得到标准闭式<span class="math display">\[c_k\;=\;\int_{-\infty}^{\,\frac{l_k-y}{\sigma\sqrt{2}}}\frac{1}{\sqrt{\pi}}e^{-u^2}\,du\;=\;\tfrac12\Big[1+\operatorname{erf}\!\Big(\frac{l_k-y}{\sigma\sqrt{2}}\Big)\Big].\]</span> 其中 <spanclass="math inline">\(\operatorname{erf}(x)\)</span> 为误差函数（errorfunction），定义为 <span class="math display">\[\operatorname{erf}(x)\;=\;\frac{2}{\sqrt{\pi}}\int_{0}^{x} e^{-t^2}\,dt,\]</span> 并满足与标准正态 <spanclass="math inline">\(\Phi(\cdot)\)</span> 的关系 <spanclass="math inline">\(\;\Phi(z)=\tfrac12\!\big[1+\operatorname{erf}(z/\sqrt{2})\big]\)</span>。</p><p>由上式可见，当 <span class="math inline">\(l_k&lt;y\)</span> 有 <spanclass="math inline">\(1-c_k&gt;0.5\)</span>，当 <spanclass="math inline">\(l_k&gt;y\)</span> 有 <spanclass="math inline">\(1-c_k&lt;0.5\)</span>，在 <spanclass="math inline">\(l_k=y\)</span> 时 <spanclass="math inline">\(1-c_k=0.5\)</span>。</p><p>Ranking 的监督在每个阈值 <span class="math inline">\(l_k\)</span>上学习事件 <span class="math inline">\(\{A&gt;l_k\}\)</span>的指示，理想标签可写为 <span class="math display">\[(p_{\mathrm{rank}})_k \;=\; \mathbf 1\{y&gt;l_k\} \;=\; 1 -F_{\delta_y}(l_k),\]</span> 其中 <span class="math inline">\(F_{\delta_y}\)</span> 为以<span class="math inline">\(y\)</span> 为质点的退化分布的CDF。注意到高斯族在 <span class="math inline">\(\sigma\to0\)</span>时弱收敛到 <span class="math inline">\(\delta_y\)</span>，对任意固定的<span class="math inline">\(l_k\ne y\)</span> 有极限 <spanclass="math display">\[\lim_{\sigma\to 0}\big[\,1-F(l_k;y,\sigma)\,\big]=\begin{cases}1, &amp; l_k&lt;y,\\[2pt]0, &amp; l_k&gt;y,\end{cases}\]</span> 即 <span class="math display">\[\lim_{\sigma\to0}(1-c_k)\;=\;\mathbf 1\{y&gt;l_k\}.\]</span></p><p>因此，<span class="math inline">\(1-\mathrm{CDF}\)</span> 在 <spanclass="math inline">\(\sigma\to0\)</span> 的极限下逐点逼近 Ranking的阶梯标签；而当 <span class="math inline">\(\sigma&gt;0\)</span>时，标签分布不仅给出与阈值相关的右尾概率，还通过可调的 <spanclass="math inline">\(\sigma\)</span>显式保留峰形与不确定性信息，因而相较仅有左右累计关系的 Ranking更具表达力。</p><h2 id="联合学习框架">联合学习框架</h2><p>联合学习框架的目标是同时学习标签分布与其期望，使训练目标与评测的 MAE对齐。给定真值年龄 <span class="math inline">\(y\)</span> 与离散网格<spanclass="math inline">\(\{l_k\}_{k=1}^{K}\)</span>，先在网格上用高斯生成标签分布<span class="math display">\[p_k \;=\;\frac{\exp\!\big(-\tfrac{(l_k-y)^2}{2\sigma^2}\big)}{\sum_{j=1}^{K}\exp\!\big(-\tfrac{(l_j-y)^2}{2\sigma^2}\big)}.\]</span> 设特征经过线性映射得到 logits <spanclass="math inline">\(x\in\mathbb R^{K}\)</span>，预测分布由 softmax给出 <span class="math display">\[\hat p_k \;=\; \frac{e^{x_k}}{\sum_{j=1}^{K}e^{x_j}},\]</span> 并在分布之后接入无参数的期望层 <span class="math display">\[\hat y \;=\; \sum_{k=1}^{K}\hat p_k\,l_k.\]</span> 总损失联合了分布端的 KL 散度与期望端的 L1 误差 <spanclass="math display">\[L \;=\; \underbrace{\sum_{k=1}^{K} p_k\,\log\frac{p_k}{\hatp_k}}_{L_{\mathrm{ld}}}\;+\;\lambda\,\underbrace{|\hat y - y|}_{L_{\mathrm{er}}}.\]</span> 该目标把“学分布的形状”（<spanclass="math inline">\(L_{\mathrm{ld}}\)</span>）与“学最终年龄值”（<spanclass="math inline">\(L_{\mathrm{er}}\)</span>）在同一网络中端到端联合起来，其中期望层不引入任何可学习参数。</p><p>联合损失对 logits 的梯度可以显式写出。注意 <spanclass="math inline">\(L_{\mathrm{ld}}\)</span> 对 <spanclass="math inline">\(x\)</span> 的梯度为 <spanclass="math inline">\(\hat p - p\)</span>，而 <spanclass="math inline">\(\hat y=\sum_k \hat p_k l_k\)</span> 且 <spanclass="math inline">\(\tfrac{\partial \hat p_k}{\partial x_i}=\hatp_k(\mathbf 1\{i=k\}-\hat p_i)\)</span>，由此 <spanclass="math display">\[\frac{\partial \hat y}{\partial x_i}=\sum_{k=1}^{K} l_k\,\frac{\partial \hat p_k}{\partial x_i}=\hat p_i\,(l_i-\hat y),\]</span> 再结合 <span class="math inline">\(L_{\mathrm{er}}=|\haty-y|\)</span> 的导数 <span class="math inline">\(\tfrac{\partialL_{\mathrm{er}}}{\partial \hat y}=\operatorname{sign}(\haty-y)\)</span>，得到总梯度 <span class="math display">\[\frac{\partial L}{\partial x_i}\;=\;\hat p_i - p_i\;+\;\lambda\,\operatorname{sign}(\hat y-y)\,\hat p_i\,(l_i-\hat y),\qquad i=1,\dots,K.\]</span> 可见分布项与期望项在 logits 处天然耦合：第一项推动 <spanclass="math inline">\(\hat p\)</span> 逼近标签分布 <spanclass="math inline">\(p\)</span>，第二项根据 <spanclass="math inline">\(\hat y\)</span> 与 <spanclass="math inline">\(y\)</span> 的偏差沿年龄轴方向重分配概率质量。<spanclass="math inline">\(\lambda\!\to\!0\)</span> 时退化为 DLDL的纯分布学习；若仅保留期望项，则等价于在 softmax概率上进行无参数的期望回归。训练阶段使用上式对网络参数做标准反向传播；推理阶段直接读取<span class="math inline">\(\hat y\)</span>作为预测年龄（必要时可对原图与水平翻转的预测取平均）。</p><h2 id="轻量网络设计">轻量网络设计</h2><p>轻量网络设计的出发点是以较小的模型容量与计算量，维持甚至提升分布学习与期望回归的联合训练效果。实现上，从VGG16出发进行结构性瘦身：首先移除全部全连接层，避免高维向量到类别空间的巨量参数；随后以混合池化替代“卷积—展平—全连接”这一路径，将最终特征通过全局平均池化与全局最大池化的组合得到紧凑表征，再接线性映射与softmax 输出分布并衔接期望层。卷积部分按 stage统一减小通道数，并在每个卷积后加入批归一化以稳定训练与缓解容量下降带来的优化困难。上述改动共同作用，使得ThinAgeNet 与 TinyAgeNet在不牺牲表征完整性的前提下显著降低参数规模与内存带宽占用，同时提升推理吞吐。</p><p>混合池化的动机在于避免单一全局平均池化对强响应的过度平滑，同时借由全局最大池化保留显著部位的激活峰值，两者的组合在年龄估计等细粒度任务上提供更鲁棒的全局描述，并可直接替代昂贵的全连接层而不引入明显的过拟合风险。与之配套的通道削减与批归一化，使有效容量与优化难度达到更合理的平衡，从而为联合损失带来更稳定的收敛路径。</p><p>在规模与效率上，这一设计将参数量从传统 VGG16级别降至数百万量级（ThinAgeNet 约 3.7M，TinyAgeNet 约0.9M），同时带来多倍的推理加速（约 2.6× 与5.5×），而联合学习框架在此骨干上仍能给出与大模型相当或更优的误差。因而，轻量骨干不是独立于方法的工程附加，而是与“分布+期望”的端到端目标相适配的结构选择：通过减少冗余参数、提升特征聚合的有效性与稳定性，为分布拟合与期望回归同时提供足够但不过度的表示能力。</p><h1 id="实验与结果分析">实验与结果分析</h1><p>实验设置：作者在三套基准数据上评估：ChaLearn15 与 ChaLearn16属于野外场景的 apparent age 数据集，均为每张图给出均值和标准差；Morph属于 real age 数据集、规模较大。ChaLearn15采用官方训练／验证／测试划分，ChaLearn16在官方训练+验证上训练并在测试集上报告结果；Morph 依常见设置随机划分为80% 训练、20% 测试。评测指标以 MAE 为主，针对 ChaLearn的比赛数据同时报告 ε-error。实现层面使用轻量骨干ThinAgeNet／TinyAgeNet，输入为对齐与标准化后的人脸，训练时进行常规数据增广；网络顶层以全连接映射得到logits，经 softmax输出预测的年龄分布，再由无参数的期望层得到单值年龄，并以 KL（分布端）+L1（期望端）的联合损失端到端优化。推理阶段对原图与水平翻转各前向一次并平均。</p><p>结果分析：综合对比显示，DLDL-v2 在 Morph 上将单模型 MAE 推至1.969，是首次低于两年的报告；在不使用外部年龄标注的前提下，其在ChaLearn15／16上亦达到与或优于同期方法的性能。轻量骨干显著降低复杂度：ThinAgeNet 约3.7M 参数、TinyAgeNet 约 0.9M，相比基于 VGG16 的 DEX／DLDL 分别小约36×／150×，前向吞吐提升约2.6×／5.5×。消融实验表明两项工程策略稳定有效：数据增广在 apparent 与Morph 上均带来显著 MAE改善，混合池化相较仅用全局平均池化在三套数据上进一步降低误差。与强基线的对比亦支持论文的理论解读：Ranking与 DLDL 均明显优于直接回归与 DEX，且 DLDL 略优于Ranking，符合“标签分布比 Ranking 信息更充分”的结论；当把“分布 +期望”联合优化后整体最好，说明对齐训练目标与评测指标是关键所在。对超参数的扫描显示方法对λ 与年龄步长不敏感，在较宽范围内性能稳定，具有良好的可调性与落地性。</p>]]></content>
-      
-      
+      <tags>
+        <tag>经典论文</tag>
+        <tag>人工智能基础</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>一卷新书入浅秋：2026-08</title>
+    <url>/zh-blog/2026/08/01/%E4%B8%80%E5%8D%B7%E6%96%B0%E4%B9%A6%E5%85%A5%E6%B5%85%E7%A7%8B%EF%BC%9A2026-08/</url>
+    <content><![CDATA[<p>八月初启，暑色未收，秋意已在风里。许多新的问题也像尚未翻开的书页一样，安静地等在前面。此刻并不急着知道它们最终会通向哪里，只愿在一次次阅读、推演与尝试之间，渐渐看清一些东西，也渐渐发现更多值得追问的方向。山长水阔，且从这一卷开始。</p>
+<span id="more"></span>
+<h2 id="fsr-vln-融合几何与图像两条路线的快慢推理vln">FSR-VLN:
+融合几何与图像两条路线的快慢推理VLN</h2>
+<p>论文链接：</p>
+<p><a href="https://arxiv.org/abs/2509.13733">FSR-VLN Fast and Slow
+Reasoning for Vision-Language Navigation with Hierarchical Multi-modal
+Scene Graph</a></p>
+<h3 id="研究背景">研究背景</h3>
+<p>FSR-VLN
+研究的是在离线场景图已经构建完成的条件下，如何根据用户指令找到目标物体。系统的输入是一条文本或语音指令，输出则是目标物体对应的视图节点以及它在场景中的三维坐标。也就是说，这篇论文主要关注的是建图完成之后的目标理解、检索和定位，而不是在线探索或实时建图。</p>
+<p>现有方法大致可以分成两条路线。一类是 OK-Robot、HOVSG
+这样的几何语义地图或 3D 场景图，把 CLIP、OWL-ViT
+等视觉模型的特征存到体素或物体节点中，检索时直接计算指令文本和节点特征之间的相似度。这类方法有明确的三维几何表示，目标一旦匹配到物体节点，就比较容易得到空间位置，但对目标的理解主要依赖
+embedding
+匹配。另一类方法则把环境表示成由历史图像组成的拓扑图，再直接利用 VLM
+或长上下文模型在图像序列中寻找目标，语义推理能力更强，但缺少显式的物体级三维几何表示。FSR-VLN
+想做的就是把这两种表示结合起来：既保留场景图中的几何和物体信息，也保留原始图像供
+VLM 做进一步判断，因此在原有的 Floor–Room–Object 结构中加入了 View
+节点，形成后面的 HMSG。两条路线和本文脉络如下所示。</p>
+<pre><code class="highlight mermaid">flowchart LR
+    A[&quot;几何语义地图 / 3D 场景图&quot;]
+    B[&quot;三维几何结构明确&lt;br/&gt;语义主要依赖特征匹配&quot;]
+
+    C[&quot;图像拓扑图 + VLM&quot;]
+    D[&quot;图像语义推理能力强&lt;br/&gt;缺少显式物体级三维结构&quot;]
+
+    A --&gt; B
+    C --&gt; D
+
+    B --&gt; E[&quot;FSR-VLN&lt;br/&gt;融合几何与图像两条路线&quot;]
+    D --&gt; E
+
+    classDef geo fill:#DCEBFA,stroke:#111111,stroke-width:3px,color:#111111;
+    classDef vision fill:#FFE1B8,stroke:#111111,stroke-width:3px,color:#111111;
+    classDef fusion fill:#DDF3E4,stroke:#111111,stroke-width:3px,color:#111111;
+
+    class A,B geo;
+    class C,D vision;
+    class E fusion;
+
+    linkStyle default stroke:#111111,stroke-width:3px;</code></pre>
+<h3 id="hmsg">HMSG</h3>
+<p>FSR-VLN 使用的是 Hierarchical Multi-modal Scene
+Graph（HMSG）。它并不是从头设计一种新的地图表示，而是在 HOVSG 原有的
+Floor–Room–Object 三层场景图中加入了一层 View，用 View
+把原始图像和三维物体连接起来。整体关系可以理解为 Floor 下面包含
+Room，每个 Room 下面同时包含 View 和 Object；View 与它能够观测到的
+Object 之间建立可见关系，不同 View
+之间则根据相对位姿建立拓扑连接。这样一来，Floor 和 Room
+仍然负责组织空间层级，Object
+保留具体物体的三维包围盒、点云和语义特征，而 View
+则保留机器人历史观测到的图像、相机位姿、CLIP 特征以及 VLM
+生成的文字描述。</p>
+<p>HMSG 的底层建图基本沿用了 HOVSG。机器人先通过 RGBD 相机和 LiDAR
+采集数据，由 FAST-LIVO2
+得到带位姿的点云和图像，再依次完成楼层划分、房间边界划分和物体实例聚类，得到原来的
+Floor–Room–Object 场景图。这部分并不是 FSR-VLN
+的主要创新，论文真正新增的是如何把历史图像作为 View
+节点接入这套结构。具体来说，每个 View 根据相机位姿和房间边界确定所属
+Room，同时由 VLM 为图像生成一段文字描述。</p>
+<p>在 View 接入之后，系统还会为每个 Object 找到所有能够看到它的
+View，并计算物体在这些视图中的平均深度，选择平均深度最小的那个作为该物体的
+best_view。这个 best_view 后面很重要，因为在线推理时 Slow Reasoning
+会直接用它对应的原始图像来核实 CLIP 找到的物体是否正确。除此之外，HOVSG
+中的房间名称原本是直接给定的，而 FSR-VLN 改成让 GPT-4o 根据房间内 View
+对应的图像内容推断房间名称。下面是在HOVSG基础上建立HMSG的流程图。</p>
+<pre><code class="highlight mermaid">flowchart LR
+    A[&quot;HOVSG&lt;br/&gt;Floor–Room–Object&quot;]
+    B[&quot;加入 View 节点&quot;]
+    C[&quot;View 归属 Room&quot;]
+    D[&quot;生成 View 描述&quot;]
+    E[&quot;建立 View–Object&lt;br/&gt;可见关系&quot;]
+    F[&quot;为 Object 选择&lt;br/&gt;best_view&quot;]
+    G[&quot;HMSG&lt;br/&gt;Floor–Room–View–Object&quot;]
+
+    A --&gt; B
+    B --&gt; C
+    B --&gt; D
+    B --&gt; E
+    B --&gt; F
+
+    C --&gt; G
+    D --&gt; G
+    E --&gt; G
+    F --&gt; G
+
+    classDef base fill:#DCEBFA,stroke:#111111,stroke-width:3px,color:#111111;
+    classDef view fill:#FFE1B8,stroke:#111111,stroke-width:3px,color:#111111;
+    classDef process fill:#FFF4D6,stroke:#111111,stroke-width:3px,color:#111111;
+    classDef final fill:#DDF3E4,stroke:#111111,stroke-width:3px,color:#111111;
+
+    class A base;
+    class B view;
+    class C,D,E,F process;
+    class G final;
+
+    linkStyle default stroke:#111111,stroke-width:3px;
+</code></pre>
+<p>HMSG 的拓扑关系可以概括为
+<code>Floor → Room → &#123;View, Object&#125;</code>。Floor 与 Room、Room 与
+View/Object 之间是层级包含关系，用来组织场景中的空间层次；View 与 Object
+之间建立可见关系，表示某个物体可以从哪些历史视角中被观测到；不同 View
+之间则根据相对位姿建立无向拓扑边，用来描述机器人在各个历史观测位置之间的空间连接。这样，原本独立的三维物体节点和原始图像视角就通过
+View–Object 的关系连接起来。下面是HMSG的各种节点的拓扑关系。</p>
+<pre><code class="highlight mermaid">
+%%&#123;init: &#123;
+  &quot;theme&quot;: &quot;base&quot;,
+  &quot;flowchart&quot;: &#123;
+    &quot;curve&quot;: &quot;linear&quot;,
+    &quot;nodeSpacing&quot;: 45,
+    &quot;rankSpacing&quot;: 60
+  &#125;
+&#125;&#125;%%
+
+flowchart LR
+    F[&quot;Floor&quot;]
+    R[&quot;Room&quot;]
+    V1[&quot;View&quot;]
+    V2[&quot;View&quot;]
+    O1[&quot;Object&quot;]
+    O2[&quot;Object&quot;]
+
+    F --&gt; R
+
+    R --&gt; V1
+    R --&gt; V2
+    R --&gt; O1
+    R --&gt; O2
+
+    V1 --- V2
+
+    V1 --- O1
+    V1 --- O2
+    V2 --- O2
+
+    O2 -. best_view .-&gt; V2
+
+    classDef floor fill:#E5DDF7,stroke:#111111,stroke-width:3px,color:#111111;
+    classDef room fill:#DCEBFA,stroke:#111111,stroke-width:3px,color:#111111;
+    classDef view fill:#FFE1B8,stroke:#111111,stroke-width:3px,color:#111111;
+    classDef object fill:#DDF3E4,stroke:#111111,stroke-width:3px,color:#111111;
+
+    class F floor;
+    class R room;
+    class V1,V2 view;
+    class O1,O2 object;
+
+    linkStyle default stroke:#111111,stroke-width:3px;
+</code></pre>
+<h3 id="在线推理">在线推理</h3>
+<p>在线推理首先由 LLM
+对用户指令进行理解。对于“带我去办公室的蓝色圆柱凳”这类显式指令，LLM
+会解析出房间和物体；对于“我累了，哪里能休息”这类隐式指令，则先推断用户真正需要寻找的目标物体。如果指令中包含房间信息，系统会先完成
+Room 匹配，将后续搜索限制在对应房间内。在此基础上，View 和 Object
+两层同时进行 CLIP 相似度匹配：Object 层得到一个候选目标物体，View
+层则得到一个候选目标视图。这个阶段基本依赖 embedding
+相似度，因此速度很快，但匹配结果不一定可靠。</p>
+<p>接下来是 Slow Reasoning。系统取出候选 Object 在建图阶段已经保存好的
+<code>best_view</code>，把对应原始图像交给
+GPT-4o，判断指令描述的目标是否真的出现在图中。如果确认存在，就直接接受
+Fast Matching 的结果；如果判断不可靠，则进行一次视图回退。系统先从其他
+View 中筛出一个与目标语义最相关的候选视图，再将它与 Fast Matching
+阶段得到的候选 View 进行视觉比较，确定最终目标视图。最后只在这个 View
+所关联的 Object 中重新计算 CLIP
+相似度，更新目标物体。目标确定之后，三维位置直接取自 Object
+节点中已经保存的几何信息，交给后续导航与控制模块。整个回退只执行一次，论文没有设计循环验证或多轮重试。下面是整体的推理流程。</p>
+<pre><code class="highlight mermaid">flowchart
+    A[&quot;用户指令&quot;] --&gt; B[&quot;LLM 指令理解&quot;]
+    B --&gt; C[&quot;Room 范围约束&quot;]
+
+    C --&gt; D[&quot;Object 层&lt;br/&gt;CLIP 匹配&quot;]
+    C --&gt; E[&quot;View 层&lt;br/&gt;CLIP 匹配&quot;]
+
+    D --&gt; F[&quot;候选 Object&quot;]
+    E --&gt; G[&quot;Fast-matched View&quot;]
+
+    F --&gt; H[&quot;使用 best_view&lt;br/&gt;进行视觉核实&quot;]
+
+    H --&gt;|可靠| I[&quot;确定目标 Object&quot;]
+
+    H --&gt;|不可靠| J[&quot;视图回退&quot;]
+    G --&gt; J
+
+    J --&gt; K[&quot;确定最终 View&quot;]
+    K --&gt; L[&quot;在关联 Object 中&lt;br/&gt;重新 CLIP 匹配&quot;]
+    L --&gt; I
+
+    I --&gt; M[&quot;读取 Object&lt;br/&gt;三维坐标&quot;]
+
+    classDef input fill:#E5DDF7,stroke:#111111,stroke-width:3px,color:#111111;
+    classDef fast fill:#DCEBFA,stroke:#111111,stroke-width:3px,color:#111111;
+    classDef verify fill:#FFE1B8,stroke:#111111,stroke-width:3px,color:#111111;
+    classDef fallback fill:#FFF1C7,stroke:#111111,stroke-width:3px,color:#111111;
+    classDef final fill:#DDF3E4,stroke:#111111,stroke-width:3px,color:#111111;
+
+    class A,B input;
+    class C,D,E,F,G fast;
+    class H verify;
+    class J,K,L fallback;
+    class I,M final;
+
+    linkStyle default stroke:#111111,stroke-width:3px;</code></pre>
+<h3 id="实验">实验</h3>
+<p>实验同时在自采真实环境和 HM3D-SEM 公开数据集上进行。真实环境使用
+Unitree-G1 搭载 Intel RealSense D455 RGBD 相机和 Mid360
+LiDAR，在包含长走廊和多个房间的办公场景中采集数据，并划分为 Room1–Room4
+四组评测集；另外还在 HM3D-SEM 的 8 个场景上测试泛化能力。</p>
+<p><strong>实验设置</strong></p>
+<table>
+<colgroup>
+<col style="width: 22%" />
+<col style="width: 77%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>项目</th>
+<th>设置</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>真实环境</td>
+<td>Unitree-G1 + RealSense D455 + Mid360 LiDAR，Room1–Room4</td>
+</tr>
+<tr class="even">
+<td>公开数据集</td>
+<td>HM3D-SEM，8 个场景</td>
+</tr>
+<tr class="odd">
+<td>指令</td>
+<td>87 条众包指令</td>
+</tr>
+<tr class="even">
+<td>指令类型</td>
+<td>RF（显式目标）、RR（需要目标推断）、SO（小物体）、ST（依赖房间级空间信息）</td>
+</tr>
+<tr class="odd">
+<td>指标</td>
+<td>SR、<span class="math inline">\(RSR_{top-n@k}\)</span>，其中 <span
+class="math inline">\(n\in\{1,5\}\)</span>，<span
+class="math inline">\(k\in\{1,2,3,4,5\}\)</span></td>
+</tr>
+<tr class="even">
+<td>自采数据 Baseline</td>
+<td>OK-Robot、HOVSG、MobilityVLA</td>
+</tr>
+<tr class="odd">
+<td>HM3D-SEM Baseline</td>
+<td>HOVSG、osmAG-LLM</td>
+</tr>
+</tbody>
+</table>
+<p>其中 <span class="math inline">\(RSR_{top-n@k}\)</span> 表示 top-n
+预测中至少有一个结果落在真值 <span class="math inline">\(k\)</span>
+米范围内的查询比例。当 <span class="math inline">\(n=1,\ k=1\)</span>
+时，RSR 与 SR 等价。</p>
+<p><strong>自采数据集主实验</strong></p>
+<table>
+<thead>
+<tr class="header">
+<th>方法</th>
+<th style="text-align: right;">SR</th>
+<th style="text-align: right;">成功数</th>
+<th>方法特点</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>MobilityVLA</td>
+<td style="text-align: right;">34.5%</td>
+<td style="text-align: right;">30/87</td>
+<td>图像拓扑图 + VLM</td>
+</tr>
+<tr class="even">
+<td>HOVSG</td>
+<td style="text-align: right;">51.7%</td>
+<td style="text-align: right;">45/87</td>
+<td>3D 场景图 + CLIP</td>
+</tr>
+<tr class="odd">
+<td>OK-Robot</td>
+<td style="text-align: right;">60.9%</td>
+<td style="text-align: right;">53/87</td>
+<td>3D voxel map</td>
+</tr>
+<tr class="even">
+<td><strong>FSR-VLN</strong></td>
+<td style="text-align: right;"><strong>92.0%</strong></td>
+<td style="text-align: right;"><strong>80/87</strong></td>
+<td>HMSG + Fast/Slow Reasoning</td>
+</tr>
+</tbody>
+</table>
+<p>FSR-VLN 的平均 SR 达到
+<strong>92%（80/87）</strong>，明显高于其他三种方法；在 RSR@Top1
+中，距离阈值扩大到 4–5 m 时进一步达到
+<strong>96.6%（84/87）</strong>。</p>
+<p>这里有一个比较重要的实验协议差异。OK-Robot、MobilityVLA 和 HOVSG
+缺少完整的房间级信息，因此在 ST 指令下只比较 LLM
+解析出的物体查询，同类物体只要出现在任意房间就可以算成功；而 FSR-VLN
+要求目标物体位于指定房间，并且 View 和 Object 都匹配正确才算成功。因此
+FSR-VLN 实际是在更严格的评价标准下取得了上述结果。</p>
+<p>MobilityVLA 的现象也比较有意思：它在 1–2 m 范围内的 RSR@Top1
+最低，但距离容差扩大到 3–5 m 后会上升到第二。这说明它利用图像序列和 VLM
+做语义推理的能力并不弱，主要问题还是缺少足够精确的三维空间定位。FSR-VLN
+则通过 HMSG 同时保留物体级三维结构和原始图像，再通过 Fast Matching 和
+Slow Reasoning 将两者结合起来。</p>
+<p><strong>消融实验</strong></p>
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: center;">ST</th>
+<th style="text-align: center;">NR / Slow Reasoning</th>
+<th style="text-align: right;">RSR@1m</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">✗</td>
+<td style="text-align: center;">✗</td>
+<td style="text-align: right;">0.724</td>
+<td>基础检索</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✗</td>
+<td style="text-align: right;">0.816</td>
+<td>加入房间级空间约束</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: right;"><strong>0.920</strong></td>
+<td>再加入 VLM 核实与失配修正</td>
+</tr>
+</tbody>
+</table>
+<p>只使用基础检索时，RSR@1m 为 <strong>0.724</strong>；加入 Spatial
+Target 信息后提升到
+<strong>0.816</strong>，说明房间级约束可以把物体搜索限制在目标房间内，减少不同房间中同类物体造成的误匹配。</p>
+<p>进一步加入 Navigation Reasoning，也就是前面的 Slow Reasoning
+后，RSR@1m 提升到 <strong>0.920</strong>，5 m 阈值下达到
+<strong>0.966</strong>。可以理解为 ST 主要解决“应该在哪个房间找”，Slow
+Reasoning 则进一步解决“Fast Matching 找到的目标到底对不对”。代价是额外的
+VLM 推理开销，响应时间也从 <strong>1.5 s 增加到 5.5 s</strong>。</p>
+<p><strong>HM3D-SEM</strong></p>
+<p>在 HM3D-SEM 的 8 个场景上也能观察到类似趋势。osmAG-LLM
+虽然同样使用层级化语义地图，但主要保留 XML 级的文本信息，因此 Top-1
+检索成功率低于保留开放词汇视觉特征的 HOVSG。FSR-VLN 在 CLIP visual
+embedding 的基础上又进一步保留原始图像，并通过 VLM
+与图像交互，因此检索效果继续提升，说明这种几何与图像结合的方式并不只适用于自采环境。</p>
+]]></content>
       <categories>
-          
-          <category> 精读解析 </category>
-          
+        <category>每月札记</category>
       </categories>
-      
-      
-        <tags>
-            
-            <tag> 标签分布学习 </tag>
-            
-        </tags>
-      
-    </entry>
-    
-    
-  
-  
+  </entry>
 </search>
