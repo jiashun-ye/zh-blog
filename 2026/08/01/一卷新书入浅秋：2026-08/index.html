@@ -27,7 +27,7 @@
 <meta property="og:description" content="八月初启，暑色未收，秋意已在风里。许多新的问题也像尚未翻开的书页一样，安静地等在前面。此刻并不急着知道它们最终会通向哪里，只愿在一次次阅读、推演与尝试之间，渐渐看清一些东西，也渐渐发现更多值得追问的方向。山长水阔，且从这一卷开始。">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2026-07-31T16:00:00.000Z">
-<meta property="article:modified_time" content="2026-08-10T03:39:13.263Z">
+<meta property="article:modified_time" content="2026-08-11T15:16:12.916Z">
 <meta property="article:author" content="叶家顺">
 <meta name="twitter:card" content="summary">
 
@@ -139,8 +139,8 @@
       <div class="sidebar-panel-container">
         <!--noindex-->
         <div class="post-toc-wrap sidebar-panel">
-            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#fsr-vln-%E8%9E%8D%E5%90%88%E5%87%A0%E4%BD%95%E4%B8%8E%E5%9B%BE%E5%83%8F%E4%B8%A4%E6%9D%A1%E8%B7%AF%E7%BA%BF%E7%9A%84%E5%BF%AB%E6%85%A2%E6%8E%A8%E7%90%86vln"><span class="nav-number">1.</span> <span class="nav-text">FSR-VLN:
-融合几何与图像两条路线的快慢推理VLN</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%A0%94%E7%A9%B6%E8%83%8C%E6%99%AF"><span class="nav-number">1.1.</span> <span class="nav-text">研究背景</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#hmsg"><span class="nav-number">1.2.</span> <span class="nav-text">HMSG</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9C%A8%E7%BA%BF%E6%8E%A8%E7%90%86"><span class="nav-number">1.3.</span> <span class="nav-text">在线推理</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AE%9E%E9%AA%8C"><span class="nav-number">1.4.</span> <span class="nav-text">实验</span></a></li></ol></li></ol></div>
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#mobilevla-r1%E7%BC%9D%E5%90%88%E8%AF%AD%E4%B9%89%E6%8E%A8%E7%90%86%E4%B8%8E%E5%BA%95%E5%B1%82%E6%8E%A7%E5%88%B6%E4%B9%8B%E9%97%B4%E7%9A%84%E9%B8%BF%E6%B2%9F"><span class="nav-number">1.</span> <span class="nav-text">MobileVLA-R1：缝合语义推理与底层控制之间的鸿沟</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%A0%94%E7%A9%B6%E8%83%8C%E6%99%AF"><span class="nav-number">1.1.</span> <span class="nav-text">研究背景</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#mobilevla-cot-%E6%95%B0%E6%8D%AE%E9%9B%86"><span class="nav-number">1.2.</span> <span class="nav-text">MobileVLA-CoT 数据集</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#mobilevla-r1-%E6%A8%A1%E5%9E%8B"><span class="nav-number">1.3.</span> <span class="nav-text">MobileVLA-R1 模型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#sft-grpo-%E8%AE%AD%E7%BB%83"><span class="nav-number">1.4.</span> <span class="nav-text">SFT + GRPO 训练</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AE%9E%E9%AA%8C"><span class="nav-number">1.5.</span> <span class="nav-text">实验</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#fsr-vln-%E8%9E%8D%E5%90%88%E5%87%A0%E4%BD%95%E4%B8%8E%E5%9B%BE%E5%83%8F%E4%B8%A4%E6%9D%A1%E8%B7%AF%E7%BA%BF%E7%9A%84%E5%BF%AB%E6%85%A2%E6%8E%A8%E7%90%86"><span class="nav-number">2.</span> <span class="nav-text">FSR-VLN:
+融合几何与图像两条路线的快慢推理</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%A0%94%E7%A9%B6%E8%83%8C%E6%99%AF-1"><span class="nav-number">2.1.</span> <span class="nav-text">研究背景</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#hmsg"><span class="nav-number">2.2.</span> <span class="nav-text">HMSG</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9C%A8%E7%BA%BF%E6%8E%A8%E7%90%86"><span class="nav-number">2.3.</span> <span class="nav-text">在线推理</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AE%9E%E9%AA%8C-1"><span class="nav-number">2.4.</span> <span class="nav-text">实验</span></a></li></ol></li></ol></div>
         </div>
         <!--/noindex-->
 
@@ -210,7 +210,7 @@
         <i class="far fa-calendar-check"></i>
       </span>
       <span class="post-meta-item-text">更新于</span>
-      <time title="修改时间：2026-08-10 11:39:13" itemprop="dateModified" datetime="2026-08-10T11:39:13+08:00">2026-08-10</time>
+      <time title="修改时间：2026-08-11 23:16:12" itemprop="dateModified" datetime="2026-08-11T23:16:12+08:00">2026-08-11</time>
     </span>
     <span class="post-meta-item">
       <span class="post-meta-item-icon">
@@ -233,8 +233,342 @@
     
     <div class="post-body" itemprop="articleBody"><p>八月初启，暑色未收，秋意已在风里。许多新的问题也像尚未翻开的书页一样，安静地等在前面。此刻并不急着知道它们最终会通向哪里，只愿在一次次阅读、推演与尝试之间，渐渐看清一些东西，也渐渐发现更多值得追问的方向。山长水阔，且从这一卷开始。</p>
 <span id="more"></span>
-<h2 id="fsr-vln-融合几何与图像两条路线的快慢推理vln">FSR-VLN:
-融合几何与图像两条路线的快慢推理VLN</h2>
+<h2
+id="mobilevla-r1缝合语义推理与底层控制之间的鸿沟">MobileVLA-R1：缝合语义推理与底层控制之间的鸿沟</h2>
+<p>论文链接：</p>
+<p><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2511.17889">MobileVLA-R1: Reinforcing
+Vision-Language-Action for Mobile Robots</a></p>
+<pre><code class="highlight mermaid">%%&#123;init: &#123;
+  &quot;theme&quot;: &quot;base&quot;,
+  &quot;flowchart&quot;: &#123;
+    &quot;curve&quot;: &quot;linear&quot;,
+    &quot;nodeSpacing&quot;: 45,
+    &quot;rankSpacing&quot;: 70
+  &#125;
+&#125;&#125;%%
+
+flowchart LR
+
+    I[&quot;自然语言指令&lt;br/&gt;Instruction&quot;]
+
+    RGB[&quot;RGB 图像&quot;]
+    D[&quot;深度图&lt;br/&gt;Depth&quot;]
+    P[&quot;三维点云&lt;br/&gt;Point Cloud&quot;]
+
+    M[&quot;MobileVLA-R1&lt;br/&gt;多模态视觉语言动作模型&quot;]
+
+    C[&quot;结构化 CoT 推理&lt;br/&gt;理解目标 · 场景 · 下一步动作&quot;]
+
+    A[&quot;机器人动作输出&lt;br/&gt;Vx · Vy · ωyaw · α&quot;]
+
+    R[&quot;四足机器人&lt;br/&gt;执行动作&quot;]
+
+    E[&quot;环境发生变化&lt;br/&gt;进入下一时间步&quot;]
+
+
+    I --&gt; M
+
+    RGB --&gt; M
+    D --&gt; M
+    P --&gt; M
+
+    M --&gt; C
+    C --&gt; A
+    A --&gt; R
+    R --&gt; E
+
+    E -. &quot;重新感知&quot; .-&gt; RGB
+    E -. &quot;重新感知&quot; .-&gt; D
+    E -. &quot;重新感知&quot; .-&gt; P
+
+
+    classDef instruction fill:#E5DDF7,stroke:#111111,stroke-width:3px,color:#111111,font-weight:bold;
+    classDef rgb fill:#DCEBFA,stroke:#111111,stroke-width:3px,color:#111111,font-weight:bold;
+    classDef depth fill:#FFE1B8,stroke:#111111,stroke-width:3px,color:#111111,font-weight:bold;
+    classDef point fill:#DDF3E4,stroke:#111111,stroke-width:3px,color:#111111,font-weight:bold;
+
+    classDef model fill:#CFE3FF,stroke:#111111,stroke-width:4px,color:#111111,font-weight:bold;
+    classDef reasoning fill:#FFF1C7,stroke:#111111,stroke-width:3px,color:#111111,font-weight:bold;
+    classDef action fill:#F8D9C4,stroke:#111111,stroke-width:3px,color:#111111,font-weight:bold;
+    classDef robot fill:#D8F0E3,stroke:#111111,stroke-width:4px,color:#111111,font-weight:bold;
+    classDef environment fill:#F0E2F5,stroke:#111111,stroke-width:3px,color:#111111,font-weight:bold;
+
+
+    class I instruction;
+    class RGB rgb;
+    class D depth;
+    class P point;
+
+    class M model;
+    class C reasoning;
+    class A action;
+    class R robot;
+    class E environment;
+
+
+    linkStyle default stroke:#111111,stroke-width:3px;
+</code></pre>
+<pre><code class="highlight mermaid">%%&#123;init: &#123;
+  &quot;theme&quot;: &quot;base&quot;,
+  &quot;flowchart&quot;: &#123;
+    &quot;curve&quot;: &quot;linear&quot;,
+    &quot;nodeSpacing&quot;: 55,
+    &quot;rankSpacing&quot;: 70
+  &#125;
+&#125;&#125;%%
+
+flowchart LR
+
+    D[&quot;原始具身数据&lt;br/&gt;R2R / RxR / QUARD&quot;]
+
+    C[&quot;构建 MobileVLA-CoT&lt;br/&gt;导航级 / 回合级 / 步级&quot;]
+
+    N[&quot;NaVILA&lt;br/&gt;预训练 VLA&quot;]
+
+    A[&quot;扩展模型结构&lt;br/&gt;RGB + Depth + Point Cloud&lt;br/&gt;LLaMA3-8B&quot;]
+
+    S[&quot;阶段一：冷启动训练&lt;br/&gt;CoT 监督微调 SFT&quot;]
+
+    G[&quot;阶段二：强化学习&lt;br/&gt;GRPO&quot;]
+
+    R[&quot;奖励设计&lt;br/&gt;Movement / Action / Format&quot;]
+
+    M[&quot;MobileVLA-R1&lt;br/&gt;语义推理 → 连续控制&quot;]
+
+    D --&gt; C
+
+    N --&gt; A
+
+    C --&gt; S
+    A --&gt; S
+
+    S --&gt; G
+    R --&gt; G
+
+    G --&gt; M
+
+
+    classDef data fill:#E5DDF7,stroke:#111111,stroke-width:3px,color:#111111,font-weight:bold;
+    classDef model fill:#DCEBFA,stroke:#111111,stroke-width:3px,color:#111111,font-weight:bold;
+    classDef sft fill:#FFE1B8,stroke:#111111,stroke-width:3px,color:#111111,font-weight:bold;
+    classDef reward fill:#FFF1C7,stroke:#111111,stroke-width:3px,color:#111111,font-weight:bold;
+    classDef grpo fill:#F8D9C4,stroke:#111111,stroke-width:3px,color:#111111,font-weight:bold;
+    classDef final fill:#DDF3E4,stroke:#111111,stroke-width:4px,color:#111111,font-weight:bold;
+
+    class D,C data;
+    class N,A model;
+    class S sft;
+    class R reward;
+    class G grpo;
+    class M final;
+
+    linkStyle default stroke:#111111,stroke-width:3px;
+</code></pre>
+<h3 id="研究背景">研究背景</h3>
+<p>MobileVLA-R1
+关注的是高层语义推理与机器人底层控制之间的鸿沟。对于“绕过箱子，走到水桶旁边”这样的指令，视觉语言模型可以理解目标和空间关系，但真正控制机器狗时，还需要把这种理解进一步落实为前进速度、转向角速度和具体动作。论文认为，直接从语言和视觉预测动作容易出现语义落地不稳定的问题，而隐藏的中间表示又缺少清晰、可解释的推理过程。</p>
+<p>受到 DeepSeek-R1 利用 CoT 与 GRPO
+强化推理能力的启发，作者希望把类似的 reasoning + reinforcement learning
+路线引入具身控制，让机器人不是直接从语言跳到底层动作，而是先形成显式的结构化推理，再把推理结果转化为连续控制。</p>
+<p>为此，论文主要做了三件事：构建多粒度的 MobileVLA-CoT 数据集，在
+NaVILA 基础上扩展 RGB、Depth 和 Point Cloud 多模态感知，并采用 SFT +
+GRPO 的两阶段训练，使模型逐步学会从语义推理落到底层控制。</p>
+<h3 id="mobilevla-cot-数据集">MobileVLA-CoT 数据集</h3>
+<p>MobileVLA-CoT 并不是从头采集的一套机器人数据，而是在 R2R、RxR 和
+QUARD 三个已有数据集上补充 CoT 标注得到的。R2R 和 RxR 都属于 VLN
+数据，核心是自然语言指令与对应的导航轨迹，其中 RxR
+的指令更长，并进一步加入多语言和更细粒度的时序对齐；QUARD
+则面向四足机器人控制，除了视觉和任务指令之外，还记录机器人执行过程中的状态与动作，因此能够提供连续速度、步态等更底层的控制监督。论文也正是利用前两者补充长程导航推理，利用
+QUARD 补充机器人动作层面的推理。</p>
+<p>作者使用 Gemini-2.5-Flash 对这些已有轨迹进行进一步标注。输入包括
+RGB–Depth 观测、自然语言指令以及对应的 state-action history，Gemini
+根据结构化 Prompt 在原有动作之前补充
+<code>&lt;think&gt;...&lt;/think&gt;</code>
+形式的推理，并把对应的导航动作或控制信号写入
+<code>&lt;answer&gt;...&lt;/answer&gt;</code>，最终形成三种不同粒度的
+MobileVLA-CoT。R2R 和 RxR 主要用于生成 MobileVLA-CoT-Nav，QUARD 则生成
+MobileVLA-CoT-Episode 和 MobileVLA-CoT-Step；三者规模分别为 38K、18K 和
+78K。原始数据集与生成数据集的关系如下所示。</p>
+<pre><code class="highlight mermaid">flowchart LR
+
+    R[&quot;R2R / RxR&lt;br/&gt;语言 + 导航轨迹&quot;]
+    Q[&quot;QUARD&lt;br/&gt;视觉 + 指令 + 机器人控制&quot;]
+
+    N[&quot;MobileVLA-CoT-Nav&lt;br/&gt;38K&quot;]
+    E[&quot;MobileVLA-CoT-Episode&lt;br/&gt;18K&quot;]
+    S[&quot;MobileVLA-CoT-Step&lt;br/&gt;78K&quot;]
+
+    R --&gt; N
+    Q --&gt; E
+    Q --&gt; S
+
+    classDef raw fill:#DCEBFA,stroke:#111111,stroke-width:3px,color:#111111,font-weight:bold;
+    classDef nav fill:#E5DDF7,stroke:#111111,stroke-width:3px,color:#111111,font-weight:bold;
+    classDef episode fill:#FFE1B8,stroke:#111111,stroke-width:3px,color:#111111,font-weight:bold;
+    classDef step fill:#DDF3E4,stroke:#111111,stroke-width:3px,color:#111111,font-weight:bold;
+
+    class R,Q raw;
+    class N nav;
+    class E episode;
+    class S step;
+
+    linkStyle default stroke:#111111,stroke-width:3px;
+</code></pre>
+<p>三种 CoT 的区别主要在于观察任务的尺度不同。</p>
+<ul>
+<li>Episode-CoT
+面向完整的一次机器人任务，更接近对整段轨迹的宏观总结，例如机器人如何接近目标、什么时候避开障碍、之后又如何重新调整方向并完成任务，因此主要描述的是整段执行过程中的高层策略。论文给出的
+Episode 示例也会依次总结 command sequence、对环境变化的响应、整体
+strategy 和最终结果。</li>
+<li>Nav-CoT
+更关注长程自然语言指令与当前导航进度之间的对应关系。例如指令是“离开卧室，进入浴室，然后停在马桶旁”，模型需要结合当前和之前看到的环境判断自己已经执行到了哪一部分：是否已经离开卧室、当前看到的门是不是浴室入口，以及接下来应该继续前进还是转向，最后给出
+<code>move forward</code>、<code>turn left</code>
+这类语义层面的导航动作。</li>
+<li>Step-CoT
+则进一步靠近底层控制。它面对的是某一个具体时间步，根据当前环境和任务解释为什么机器人此时应该这样运动，并直接输出
+<code>x_vel_cmd</code>、<code>y_vel_cmd</code>、<code>yaw_vel_cmd</code>、gait、step
+frequency 等控制参数。</li>
+</ul>
+<p>整体上来说，Episode-CoT偏向于宏观规划，Nav-CoT偏向于识别当前在指令的哪一步以及当前需要做的动作用自然语言怎么表述，Step-CoT偏向于怎么把自然语言的动作转化为控制机器人做相应动作的命令序列。</p>
+<h3 id="mobilevla-r1-模型">MobileVLA-R1 模型</h3>
+<p>MobileVLA-R1 的模型结构并不是从头设计，而是以 NaVILA
+为初始化模型，在原有视觉语言导航能力的基础上进一步加入深度和三维点云信息。整体仍然沿用
+LLaVA 风格的多模态架构：RGB、Depth 和 Point Cloud
+分别经过对应的编码器提取特征，再通过 projection layer
+映射到与语言模型兼容的表示空间，与自然语言指令一起送入 LLaMA3-8B。论文中
+RGB 部分继承自 NaVILA，Depth 使用 DepthAnything V2，Point Cloud 则使用
+Point Transformer v3。下面是整个模型的结构流程图。</p>
+<pre><code class="highlight mermaid">%%&#123;init: &#123;
+  &quot;theme&quot;: &quot;base&quot;,
+  &quot;flowchart&quot;: &#123;
+    &quot;curve&quot;: &quot;linear&quot;,
+    &quot;nodeSpacing&quot;: 45,
+    &quot;rankSpacing&quot;: 65
+  &#125;
+&#125;&#125;%%
+
+flowchart LR
+
+    T[&quot;自然语言指令&quot;]
+    RGB[&quot;RGB&quot;]
+    D[&quot;Depth&quot;]
+    P[&quot;Point Cloud&quot;]
+
+    RE[&quot;RGB Encoder&quot;]
+    DE[&quot;DepthAnything V2&quot;]
+    PE[&quot;Point Transformer v3&quot;]
+
+    PROJ[&quot;Projection Layer&quot;]
+    LLM[&quot;LLaMA3-8B&lt;br/&gt;+ LoRA&quot;]
+
+    COT[&quot;CoT 推理&quot;]
+    A[&quot;动作输出&lt;br/&gt;Vx · Vy · ωyaw · α&quot;]
+
+    RGB --&gt; RE
+    D --&gt; DE
+    P --&gt; PE
+
+    RE --&gt; PROJ
+    DE --&gt; PROJ
+    PE --&gt; PROJ
+
+    PROJ --&gt; LLM
+    T --&gt; LLM
+
+    LLM --&gt; COT
+    COT --&gt; A
+
+    classDef input fill:#E5DDF7,stroke:#111111,stroke-width:3px,color:#111111,font-weight:bold;
+    classDef encoder fill:#DCEBFA,stroke:#111111,stroke-width:3px,color:#111111,font-weight:bold;
+    classDef projector fill:#FFE1B8,stroke:#111111,stroke-width:3px,color:#111111,font-weight:bold;
+    classDef llm fill:#FFF1C7,stroke:#111111,stroke-width:4px,color:#111111,font-weight:bold;
+    classDef cot fill:#F8D9C4,stroke:#111111,stroke-width:3px,color:#111111,font-weight:bold;
+    classDef action fill:#DDF3E4,stroke:#111111,stroke-width:3px,color:#111111,font-weight:bold;
+
+    class T,RGB,D,P input;
+    class RE,DE,PE encoder;
+    class PROJ projector;
+    class LLM llm;
+    class COT cot;
+    class A action;
+
+    linkStyle default stroke:#111111,stroke-width:3px;
+</code></pre>
+<p>加入 Depth 和 Point Cloud 的目的，是在 RGB
+语义信息之外补充更直接的空间几何信息。Depth
+提供物体距离和前后层次，Point Cloud
+则进一步描述三维空间结构，因此模型不仅需要判断“画面里有什么”，还能够利用距离和几何关系决定当前该向哪里运动。论文也通过后面的模态消融实验验证了
+Depth 和 Point Encoder 都能继续提升导航结果。</p>
+<p>模型最终在每个时间步接收当前的 RGB、Depth、Point Cloud
+和自然语言指令，并预测机器人动作 <span class="math inline">\(a_t = [V_x,
+V_y, \omega_{\text{yaw}},
+\alpha]\)</span>。其中前三项分别表示前后、横向和转向速度，<span
+class="math inline">\(\alpha\)</span>
+则表示离散的高层动作。与普通直接预测动作的 VLA 不同，MobileVLA-R1
+希望先通过 LLaMA3-8B 形成显式的 CoT
+推理，再将结果落实到具体的机器人控制上。</p>
+<p>参数训练上，作者没有重新更新整个 8B 模型，而是采用 LoRA
+进行参数高效微调，主要作用在 projection 和 LLaMA3-8B 的 attention
+layer，视觉编码器保持冻结。这样既保留 NaVILA
+已有的视觉语言能力，又可以用较小的训练成本让模型适应新的多模态输入和 CoT
+控制任务。</p>
+<h3 id="sft-grpo-训练">SFT + GRPO 训练</h3>
+<p>MobileVLA-R1 的训练分成两个阶段。作者受到 DeepSeek-R1
+的启发，希望通过强化学习进一步提升模型的推理能力，但对于同时包含视觉、语言和机器人动作的多模态模型，直接进行端到端强化学习容易出现训练不稳定。因此作者先利用前面构造的
+MobileVLA-CoT
+进行监督微调，让模型先学会稳定地产生结构化推理和动作，再通过 GRPO
+对推理与实际控制之间的对应关系进行强化。</p>
+<pre><code class="highlight mermaid">%%&#123;init: &#123;
+  &quot;theme&quot;: &quot;base&quot;,
+  &quot;flowchart&quot;: &#123;
+    &quot;curve&quot;: &quot;linear&quot;,
+    &quot;nodeSpacing&quot;: 50,
+    &quot;rankSpacing&quot;: 65
+  &#125;
+&#125;&#125;%%
+
+flowchart LR
+
+    M[&quot;NaVILA 初始化&lt;br/&gt;MobileVLA-R1&quot;]
+
+    E[&quot;Episode-CoT&lt;br/&gt;整段任务策略&quot;]
+    N[&quot;Nav-CoT&lt;br/&gt;导航进度与下一步&quot;]
+    S[&quot;Step-CoT&lt;br/&gt;具体控制信号&quot;]
+
+    SFT1[&quot;SFT 第一阶段&lt;br/&gt;学习结构化推理&quot;]
+    SFT2[&quot;SFT 第二阶段&lt;br/&gt;推理 → 可执行动作&quot;]
+
+    R[&quot;GRPO&lt;br/&gt;Movement + Action + Format Reward&quot;]
+
+    F[&quot;MobileVLA-R1&lt;br/&gt;推理与控制进一步对齐&quot;]
+
+    M --&gt; SFT1
+    E --&gt; SFT1
+    N --&gt; SFT1
+
+    SFT1 --&gt; SFT2
+    S --&gt; SFT2
+
+    SFT2 --&gt; R
+    R --&gt; F
+
+    classDef model fill:#DCEBFA,stroke:#111111,stroke-width:3px,color:#111111,font-weight:bold;
+    classDef cot fill:#E5DDF7,stroke:#111111,stroke-width:3px,color:#111111,font-weight:bold;
+    classDef sft fill:#FFE1B8,stroke:#111111,stroke-width:3px,color:#111111,font-weight:bold;
+    classDef grpo fill:#F8D9C4,stroke:#111111,stroke-width:3px,color:#111111,font-weight:bold;
+    classDef final fill:#DDF3E4,stroke:#111111,stroke-width:4px,color:#111111,font-weight:bold;
+
+    class M model;
+    class E,N,S cot;
+    class SFT1,SFT2 sft;
+    class R grpo;
+    class F final;
+
+    linkStyle default stroke:#111111,stroke-width:3px;
+</code></pre>
+<h3 id="实验">实验</h3>
+<h2 id="fsr-vln-融合几何与图像两条路线的快慢推理">FSR-VLN:
+融合几何与图像两条路线的快慢推理</h2>
 <p>论文链接：</p>
 <p><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2509.13733">FSR-VLN Fast and Slow
 Reasoning for Vision-Language Navigation with Hierarchical Multi-modal
@@ -271,7 +605,7 @@ Scene Graph</a></p>
 
     linkStyle default stroke:#111111,stroke-width:3px;
 </code></pre>
-<h3 id="研究背景">研究背景</h3>
+<h3 id="研究背景-1">研究背景</h3>
 <p>FSR-VLN
 研究的是在离线场景图已经构建完成的条件下，如何根据用户指令找到目标物体。系统的输入是一条文本或语音指令，输出则是目标物体对应的视图节点以及它在场景中的三维坐标。也就是说，这篇论文主要关注的是建图完成之后的目标理解、检索和定位，而不是在线探索或实时建图。</p>
 <p>现有方法大致可以分成两条路线。一类是 OK-Robot、HOVSG
@@ -466,7 +800,7 @@ View 中筛出一个与目标语义最相关的候选视图，再将它与 Fast 
     class I,M final;
 
     linkStyle default stroke:#111111,stroke-width:3px;</code></pre>
-<h3 id="实验">实验</h3>
+<h3 id="实验-1">实验</h3>
 <p>实验同时在自采真实环境和 HM3D-SEM 公开数据集上进行。真实环境使用
 Unitree-G1 搭载 Intel RealSense D455 RGBD 相机和 Mid360
 LiDAR，在包含长走廊和多个房间的办公场景中采集数据，并划分为 Room1–Room4
