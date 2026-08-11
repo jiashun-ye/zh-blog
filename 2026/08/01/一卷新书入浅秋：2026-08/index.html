@@ -27,7 +27,7 @@
 <meta property="og:description" content="八月初启，暑色未收，秋意已在风里。许多新的问题也像尚未翻开的书页一样，安静地等在前面。此刻并不急着知道它们最终会通向哪里，只愿在一次次阅读、推演与尝试之间，渐渐看清一些东西，也渐渐发现更多值得追问的方向。山长水阔，且从这一卷开始。">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2026-07-31T16:00:00.000Z">
-<meta property="article:modified_time" content="2026-08-09T03:48:14.455Z">
+<meta property="article:modified_time" content="2026-08-10T03:39:13.263Z">
 <meta property="article:author" content="叶家顺">
 <meta name="twitter:card" content="summary">
 
@@ -210,7 +210,7 @@
         <i class="far fa-calendar-check"></i>
       </span>
       <span class="post-meta-item-text">更新于</span>
-      <time title="修改时间：2026-08-09 11:48:14" itemprop="dateModified" datetime="2026-08-09T11:48:14+08:00">2026-08-09</time>
+      <time title="修改时间：2026-08-10 11:39:13" itemprop="dateModified" datetime="2026-08-10T11:39:13+08:00">2026-08-10</time>
     </span>
     <span class="post-meta-item">
       <span class="post-meta-item-icon">
@@ -239,6 +239,38 @@
 <p><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2509.13733">FSR-VLN Fast and Slow
 Reasoning for Vision-Language Navigation with Hierarchical Multi-modal
 Scene Graph</a></p>
+<pre><code class="highlight mermaid">flowchart LR
+
+    M[&quot;HMSG&lt;br/&gt;预构建空间记忆&quot;]
+
+    Q[&quot;用户指令&quot;] --&gt; L[&quot;LLM&lt;br/&gt;目标理解&quot;]
+    L --&gt; F[&quot;Fast Matching&quot;]
+    F --&gt; S[&quot;Slow Reasoning&quot;]
+
+    S --&gt;|成功| O[&quot;Goal View / Object&lt;br/&gt;3D Position&quot;]
+    S --&gt;|失配| R[&quot;Fallback Refinement&quot;]
+    R --&gt; O
+
+    M -. 支撑检索 .-&gt; F
+    M -. 提供 best_view .-&gt; S
+    M -. 提供关联关系 .-&gt; R
+
+    classDef map fill:#DDF3E4,stroke:#111111,stroke-width:3px,color:#111111;
+    classDef input fill:#E5DDF7,stroke:#111111,stroke-width:3px,color:#111111;
+    classDef fast fill:#DCEBFA,stroke:#111111,stroke-width:3px,color:#111111;
+    classDef verify fill:#FFE1B8,stroke:#111111,stroke-width:3px,color:#111111;
+    classDef fallback fill:#FFF1C7,stroke:#111111,stroke-width:3px,color:#111111;
+    classDef output fill:#F8D9C4,stroke:#111111,stroke-width:3px,color:#111111;
+
+    class M map;
+    class Q,L input;
+    class F fast;
+    class S verify;
+    class R fallback;
+    class O output;
+
+    linkStyle default stroke:#111111,stroke-width:3px;
+</code></pre>
 <h3 id="研究背景">研究背景</h3>
 <p>FSR-VLN
 研究的是在离线场景图已经构建完成的条件下，如何根据用户指令找到目标物体。系统的输入是一条文本或语音指令，输出则是目标物体对应的视图节点以及它在场景中的三维坐标。也就是说，这篇论文主要关注的是建图完成之后的目标理解、检索和定位，而不是在线探索或实时建图。</p>
