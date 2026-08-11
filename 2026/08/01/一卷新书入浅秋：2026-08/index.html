@@ -27,7 +27,7 @@
 <meta property="og:description" content="八月初启，暑色未收，秋意已在风里。许多新的问题也像尚未翻开的书页一样，安静地等在前面。此刻并不急着知道它们最终会通向哪里，只愿在一次次阅读、推演与尝试之间，渐渐看清一些东西，也渐渐发现更多值得追问的方向。山长水阔，且从这一卷开始。">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2026-07-31T16:00:00.000Z">
-<meta property="article:modified_time" content="2026-08-11T15:16:12.916Z">
+<meta property="article:modified_time" content="2026-08-11T23:13:38.132Z">
 <meta property="article:author" content="叶家顺">
 <meta name="twitter:card" content="summary">
 
@@ -139,7 +139,7 @@
       <div class="sidebar-panel-container">
         <!--noindex-->
         <div class="post-toc-wrap sidebar-panel">
-            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#mobilevla-r1%E7%BC%9D%E5%90%88%E8%AF%AD%E4%B9%89%E6%8E%A8%E7%90%86%E4%B8%8E%E5%BA%95%E5%B1%82%E6%8E%A7%E5%88%B6%E4%B9%8B%E9%97%B4%E7%9A%84%E9%B8%BF%E6%B2%9F"><span class="nav-number">1.</span> <span class="nav-text">MobileVLA-R1：缝合语义推理与底层控制之间的鸿沟</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%A0%94%E7%A9%B6%E8%83%8C%E6%99%AF"><span class="nav-number">1.1.</span> <span class="nav-text">研究背景</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#mobilevla-cot-%E6%95%B0%E6%8D%AE%E9%9B%86"><span class="nav-number">1.2.</span> <span class="nav-text">MobileVLA-CoT 数据集</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#mobilevla-r1-%E6%A8%A1%E5%9E%8B"><span class="nav-number">1.3.</span> <span class="nav-text">MobileVLA-R1 模型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#sft-grpo-%E8%AE%AD%E7%BB%83"><span class="nav-number">1.4.</span> <span class="nav-text">SFT + GRPO 训练</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AE%9E%E9%AA%8C"><span class="nav-number">1.5.</span> <span class="nav-text">实验</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#fsr-vln-%E8%9E%8D%E5%90%88%E5%87%A0%E4%BD%95%E4%B8%8E%E5%9B%BE%E5%83%8F%E4%B8%A4%E6%9D%A1%E8%B7%AF%E7%BA%BF%E7%9A%84%E5%BF%AB%E6%85%A2%E6%8E%A8%E7%90%86"><span class="nav-number">2.</span> <span class="nav-text">FSR-VLN:
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#mobilevla-r1%E7%BC%9D%E5%90%88%E8%AF%AD%E4%B9%89%E6%8E%A8%E7%90%86%E4%B8%8E%E5%BA%95%E5%B1%82%E6%8E%A7%E5%88%B6%E4%B9%8B%E9%97%B4%E7%9A%84%E9%B8%BF%E6%B2%9F"><span class="nav-number">1.</span> <span class="nav-text">MobileVLA-R1：缝合语义推理与底层控制之间的鸿沟</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%A0%94%E7%A9%B6%E8%83%8C%E6%99%AF"><span class="nav-number">1.1.</span> <span class="nav-text">研究背景</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#mobilevla-cot-%E6%95%B0%E6%8D%AE%E9%9B%86"><span class="nav-number">1.2.</span> <span class="nav-text">MobileVLA-CoT 数据集</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#mobilevla-r1-%E6%A8%A1%E5%9E%8B"><span class="nav-number">1.3.</span> <span class="nav-text">MobileVLA-R1 模型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#sft-grpo-%E8%AE%AD%E7%BB%83"><span class="nav-number">1.4.</span> <span class="nav-text">SFT + GRPO 训练</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#sft-%E5%86%B7%E5%90%AF%E5%8A%A8"><span class="nav-number">1.4.1.</span> <span class="nav-text">SFT 冷启动</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#grpo"><span class="nav-number">1.4.2.</span> <span class="nav-text">GRPO</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AE%9E%E9%AA%8C"><span class="nav-number">1.5.</span> <span class="nav-text">实验</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#fsr-vln-%E8%9E%8D%E5%90%88%E5%87%A0%E4%BD%95%E4%B8%8E%E5%9B%BE%E5%83%8F%E4%B8%A4%E6%9D%A1%E8%B7%AF%E7%BA%BF%E7%9A%84%E5%BF%AB%E6%85%A2%E6%8E%A8%E7%90%86"><span class="nav-number">2.</span> <span class="nav-text">FSR-VLN:
 融合几何与图像两条路线的快慢推理</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%A0%94%E7%A9%B6%E8%83%8C%E6%99%AF-1"><span class="nav-number">2.1.</span> <span class="nav-text">研究背景</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#hmsg"><span class="nav-number">2.2.</span> <span class="nav-text">HMSG</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9C%A8%E7%BA%BF%E6%8E%A8%E7%90%86"><span class="nav-number">2.3.</span> <span class="nav-text">在线推理</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AE%9E%E9%AA%8C-1"><span class="nav-number">2.4.</span> <span class="nav-text">实验</span></a></li></ol></li></ol></div>
         </div>
         <!--/noindex-->
@@ -210,7 +210,7 @@
         <i class="far fa-calendar-check"></i>
       </span>
       <span class="post-meta-item-text">更新于</span>
-      <time title="修改时间：2026-08-11 23:16:12" itemprop="dateModified" datetime="2026-08-11T23:16:12+08:00">2026-08-11</time>
+      <time title="修改时间：2026-08-12 07:13:38" itemprop="dateModified" datetime="2026-08-12T07:13:38+08:00">2026-08-12</time>
     </span>
     <span class="post-meta-item">
       <span class="post-meta-item-icon">
@@ -455,8 +455,8 @@ flowchart LR
     P[&quot;Point Cloud&quot;]
 
     RE[&quot;RGB Encoder&quot;]
-    DE[&quot;DepthAnything V2&quot;]
-    PE[&quot;Point Transformer v3&quot;]
+    DE[&quot;Depth Encoder&quot;]
+    PE[&quot;Point Cloud Encoder&quot;]
 
     PROJ[&quot;Projection Layer&quot;]
     LLM[&quot;LLaMA3-8B&lt;br/&gt;+ LoRA&quot;]
@@ -531,16 +531,16 @@ flowchart LR
 
     M[&quot;NaVILA 初始化&lt;br/&gt;MobileVLA-R1&quot;]
 
-    E[&quot;Episode-CoT&lt;br/&gt;整段任务策略&quot;]
-    N[&quot;Nav-CoT&lt;br/&gt;导航进度与下一步&quot;]
-    S[&quot;Step-CoT&lt;br/&gt;具体控制信号&quot;]
+    E[&quot;Episode-CoT&lt;br/&gt;整段任务总结与策略&quot;]
+    N[&quot;Nav-CoT&lt;br/&gt;长程导航推理&quot;]
+    S[&quot;Step-CoT&lt;br/&gt;可执行动作命令&quot;]
 
     SFT1[&quot;SFT 第一阶段&lt;br/&gt;学习结构化推理&quot;]
     SFT2[&quot;SFT 第二阶段&lt;br/&gt;推理 → 可执行动作&quot;]
 
-    R[&quot;GRPO&lt;br/&gt;Movement + Action + Format Reward&quot;]
+    R[&quot;GRPO 强化学习&lt;br/&gt;Movement + Action + Format Reward&quot;]
 
-    F[&quot;MobileVLA-R1&lt;br/&gt;推理与控制进一步对齐&quot;]
+    F[&quot;最终模型&lt;br/&gt;GRPO 后的 MobileVLA-R1&quot;]
 
     M --&gt; SFT1
     E --&gt; SFT1
@@ -566,11 +566,584 @@ flowchart LR
 
     linkStyle default stroke:#111111,stroke-width:3px;
 </code></pre>
+<h4 id="sft-冷启动">SFT 冷启动</h4>
+<p>SFT 又可以分成两个步骤。首先使用完整的 Episode-CoT 和 Nav-CoT
+训练模型，使其学会按照
+<code>&lt;think&gt;...&lt;/think&gt;&lt;answer&gt;...&lt;/answer&gt;</code>
+的格式进行推理。前者提供整个任务尺度的执行策略，后者提供长程导航过程中当前进度和下一步动作的判断，因此这一阶段主要解决的是“模型应该怎样思考和表达决策”。</p>
+<p>随后再加入约 10K 条 Step-CoT。与前两种数据不同，Step-CoT 的
+<code>&lt;answer&gt;</code>
+中已经包含可以执行的速度和动作命令，例如前进速度、横向速度和 yaw
+角速度等，这些输出可以被确定性地解析成机器人控制信号。因此第二步实际上是在前面已经建立的语义推理基础上，进一步学习如何把“应该怎么做”落到具体控制量上。</p>
+<p>从训练方式上看，SFT
+和普通语言模型监督微调没有本质区别。给定视觉、语言和一条 Gemini
+生成的标准 CoT，模型按照 teacher forcing 学习标准答案中的下一个
+token。也就是说，SFT 告诉模型的是：</p>
+<figure class="highlight txt"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">对于这个输入，希望你尽可能复现这一条</span><br><span class="line">&lt;think&gt; ... &lt;/think&gt;</span><br><span class="line">&lt;answer&gt; ... &lt;/answer&gt;</span><br></pre></td></tr></table></figure>
+<p>这样可以很快建立稳定的输出格式和基本推理方式，但它仍然依赖 Gemini
+给出的单条标准答案。如果某一种推理写法最终产生了更好的机器人动作，仅靠
+SFT 本身并不会主动偏向这种结果，因此作者继续使用 GRPO 进行强化。</p>
+<h4 id="grpo">GRPO</h4>
+<p>GRPO 阶段不再为一个输入只提供一条固定的标准答案。对于同一个多模态输入
+<span class="math inline">\(I=(x,i)\)</span>，当前模型一次采样得到 <span
+class="math inline">\(N\)</span> 条不同的输出：</p>
+<p><span class="math display">\[
+o_1,o_2,\ldots,o_N
+\]</span></p>
+<p>论文训练时，每个样本生成 <strong>8 个 response</strong>，每个
+optimization step 使用 <strong>5 个样本</strong>。Reward
+有三个方面：</p>
+<ul>
+<li>Movement Reward比较预测速度方向和真实速度方向，使用 <span
+class="math inline">\(V_x\)</span>、<span
+class="math inline">\(V_y\)</span>、<span
+class="math inline">\(V_{\text{yaw}}\)</span>
+三个连续控制量的余弦相似度：</li>
+</ul>
+<p><span class="math display">\[
+R_m=
+\frac{
+\mathbf{o}&#39;^{\top}\mathbf{o}&#39;^{*}
+}{
+\|\mathbf{o}&#39;\|_2\|\mathbf{o}&#39;^{*}\|_2
+},
+\qquad
+\mathbf{o}&#39;=(V_x,V_y,V_{\text{yaw}})
+\]</span></p>
+<ul>
+<li>Action Reward 用于监督离散的高层动作。如果模型预测的动作 <span
+class="math inline">\(a\)</span> 与真实动作 <span
+class="math inline">\(a^*\)</span> 一致，则 reward 为 1，否则为 0：</li>
+</ul>
+<p><span class="math display">\[
+R_{\text{action}}
+=
+\begin{cases}
+1, &amp; a=a^* \\
+0, &amp; \text{otherwise}
+\end{cases}
+\]</span></p>
+<ul>
+<li>Format Reward
+检查模型是否仍然保持：<code>&lt;think&gt;...&lt;/think&gt;&lt;answer&gt;...&lt;/answer&gt;</code>这样的结构化输出格式：</li>
+</ul>
+<p><span class="math display">\[
+R_{\text{format}}
+=
+\begin{cases}
+1, &amp; \text{output satisfies format} \\
+0, &amp; \text{otherwise}
+\end{cases}
+\]</span></p>
+<p>论文分别定义了三种 reward，但没有明确给出它们如何组合成最终 reward
+<span class="math inline">\(r_i\)</span>，也没有报告三种 reward
+的具体权重。下面是对三种Reward的总结归纳：</p>
+<table>
+<colgroup>
+<col style="width: 23%" />
+<col style="width: 38%" />
+<col style="width: 38%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Reward</th>
+<th>约束对象</th>
+<th>希望模型学到什么</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Movement Reward</td>
+<td><span class="math inline">\(V_x,V_y,V_{\text{yaw}}\)</span></td>
+<td>运动方向与真实控制一致</td>
+</tr>
+<tr class="even">
+<td>Action Reward</td>
+<td>离散动作 <span class="math inline">\(a\)</span></td>
+<td>高层动作选择正确</td>
+</tr>
+<tr class="odd">
+<td>Format Reward</td>
+<td><code>&lt;think&gt;&lt;answer&gt;</code></td>
+<td>保持结构化、可解析的输出</td>
+</tr>
+</tbody>
+</table>
+<p>GRPO 的关键不只是计算 reward，而是在同一组 response
+之间进行相对比较。</p>
+<p>假设同一个输入生成的 <span class="math inline">\(N\)</span> 个
+response 分别得到：</p>
+<p><span class="math display">\[
+r_1,r_2,\ldots,r_N
+\]</span></p>
+<p>论文计算第 <span class="math inline">\(i\)</span> 个 response 的
+advantage：</p>
+<p><span class="math display">\[
+A_i
+=
+r_i-
+\frac{1}{N}
+\sum_{j=1}^{N}r_j
+\]</span></p>
+<p>也就是说，一个 response 是否值得强化，不只取决于自己的 reward
+有多大，而取决于它是否高于同一组 response 的平均 reward。</p>
+<p>高于平均水平的 response 得到正 advantage，在之后的 policy update
+中提高出现概率；低于平均水平的 response 得到负
+advantage，则降低出现概率。</p>
+<p>随后 advantage 会进一步进行归一化：</p>
+<p><span class="math display">\[
+\hat{A}_i
+=
+\frac{A_i}{\sigma_A+\epsilon}
+\]</span></p>
+<p>得到 advantage 后，GRPO 最终通过下面的目标函数更新当前 policy：</p>
+<p><span class="math display">\[
+J_{\mathrm{GRPO}}(\theta)
+=
+\mathbb{E}_{j=1}^{G}
+\left[
+\min
+\left(
+\frac{\pi_\theta(o_j\mid I)}
+{\pi_{\theta_{\mathrm{old}}}(o_j\mid I)}
+\hat{A}_j,
+\operatorname{clip}
+\left(
+\frac{\pi_\theta(o_j\mid I)}
+{\pi_{\theta_{\mathrm{old}}}(o_j\mid I)},
+1-\epsilon,
+1+\epsilon
+\right)
+\hat{A}_j
+\right)
+-
+\beta D_{\mathrm{KL}}
+\left(
+\pi_\theta\|\pi_{\mathrm{ref}}
+\right)
+\right]
+\]</span></p>
+<p>其中</p>
+<p><span class="math display">\[
+\frac{\pi_\theta(o_j\mid I)}
+{\pi_{\theta_{\mathrm{old}}}(o_j\mid I)}
+\]</span></p>
+<p>表示当前 policy 相比更新前的 old policy，对第 <span
+class="math inline">\(j\)</span> 个 response
+的生成概率发生了多大变化。前面的 <span
+class="math inline">\(\hat{A}_j\)</span> 决定了更新方向：如果 <span
+class="math inline">\(\hat{A}_j&gt;0\)</span>，说明这个 response 的
+reward 高于组内平均水平，就希望提高它之后再次被生成的概率；如果 <span
+class="math inline">\(\hat{A}_j&lt;0\)</span>，则降低它的生成概率。</p>
+<p>如果只按照 advantage 更新，模型可能会因为某个 response 的 reward
+较高而一次性大幅提高它的概率，因此 GRPO 沿用了 PPO 中的 clipping
+机制，将概率比值限制在 <span class="math inline">\(1-\epsilon\)</span>
+到 <span class="math inline">\(1+\epsilon\)</span> 附近，并通过
+<code>min</code> 选择更加保守的目标，从而限制单次 policy update
+的幅度。</p>
+<p>因此前半部分可以简单理解为：</p>
+<p><span class="math display">\[
+\text{Reward}
+\rightarrow
+\text{组内 Advantage}
+\rightarrow
+\text{调整 Response 的生成概率}
+\rightarrow
+\text{Clipping 限制更新幅度}
+\]</span></p>
+<p>目标函数最后还有一项：</p>
+<p><span class="math display">\[
+-\beta D_{\mathrm{KL}}
+\left(
+\pi_\theta\|\pi_{\mathrm{ref}}
+\right)
+\]</span></p>
+<p>其中 <span class="math inline">\(\pi_{\mathrm{ref}}\)</span> 是冻结的
+reference model，也就是经过 SFT 后得到的模型。KL divergence 用来限制当前
+policy 与 reference policy 之间的距离，避免模型为了追求 reward
+而快速偏离已经通过 SFT 学到的语言、CoT 格式和基本动作能力。</p>
+<p>这样一来，GRPO 的完整过程就是先让当前模型针对同一个输入生成多个
+response，根据 Movement、Action 和 Format 三种 reward 对这些 response
+进行评价，再通过组内比较得到 advantage，最后利用 <span
+class="math inline">\(J_{\mathrm{GRPO}}\)</span> 提高较好 response
+的生成概率、降低较差 response 的生成概率，同时通过 clipping 和 KL
+regularization 控制更新幅度。GRPO的流程大致如下所示。</p>
+<pre><code class="highlight mermaid">%%&#123;init: &#123;
+  &quot;theme&quot;: &quot;base&quot;,
+  &quot;flowchart&quot;: &#123;
+    &quot;curve&quot;: &quot;linear&quot;,
+    &quot;nodeSpacing&quot;: 45,
+    &quot;rankSpacing&quot;: 60
+  &#125;
+&#125;&#125;%%
+
+flowchart LR
+
+    I[&quot;同一个输入&lt;br/&gt;Instruction + Observation&quot;]
+
+    P[&quot;当前 Policy&quot;]
+
+    O1[&quot;Response 1&quot;]
+    O2[&quot;Response 2&quot;]
+    O3[&quot;...&quot;]
+    ON[&quot;Response N&quot;]
+
+    R[&quot;计算 Reward&lt;br/&gt;Movement · Action · Format&quot;]
+
+    G[&quot;组内比较&lt;br/&gt;计算相对 Advantage&quot;]
+
+    U[&quot;GRPO 更新 Policy&quot;]
+
+    REF[&quot;SFT Reference Model&lt;br/&gt;KL 约束&quot;]
+
+    I --&gt; P
+
+    P --&gt; O1
+    P --&gt; O2
+    P --&gt; O3
+    P --&gt; ON
+
+    O1 --&gt; R
+    O2 --&gt; R
+    O3 --&gt; R
+    ON --&gt; R
+
+    R --&gt; G
+    G --&gt; U
+
+    REF -. &quot;限制策略偏移&quot; .-&gt; U
+
+    classDef input fill:#E5DDF7,stroke:#111111,stroke-width:3px,color:#111111,font-weight:bold;
+    classDef policy fill:#DCEBFA,stroke:#111111,stroke-width:3px,color:#111111,font-weight:bold;
+    classDef response fill:#FFF1C7,stroke:#111111,stroke-width:3px,color:#111111;
+    classDef reward fill:#FFE1B8,stroke:#111111,stroke-width:3px,color:#111111,font-weight:bold;
+    classDef grpo fill:#F8D9C4,stroke:#111111,stroke-width:3px,color:#111111,font-weight:bold;
+    classDef ref fill:#DDF3E4,stroke:#111111,stroke-width:3px,color:#111111,font-weight:bold;
+
+    class I input;
+    class P policy;
+    class O1,O2,O3,ON response;
+    class R reward;
+    class G,U grpo;
+    class REF ref;
+
+    linkStyle default stroke:#111111,stroke-width:3px;
+</code></pre>
 <h3 id="实验">实验</h3>
+<p>前面的 MobileVLA-CoT 都只由 R2R、RxR 和 QUARD
+的训练数据生成，因此实验主要检验经过这些数据训练后的模型能否泛化到未参与
+CoT 构造的环境和任务。高层导航部分在 R2R-CE 和 RxR-CE 的 Val-Unseen
+split
+上测试，评估模型在未见场景中根据长程自然语言指令完成导航的能力；底层控制部分按照
+QUARD
+的官方协议，在六类四足机器人任务上评估动作执行能力。除此之外，作者还将模型部署到
+Unitree Go2，在 Workspace、Corridor 和 Outdoor
+三种真实环境中进行测试。在这些实验的基础上，作者通过消融实验验证了三种Reward设计的必要性。</p>
+<p><strong>VLN-CE</strong></p>
+<p>在 R2R-CE 和 RxR-CE 上，论文使用 NE、OS、SR、SPL 和 nDTW
+等标准导航指标。NE 表示最终位置与目标之间的距离；OS
+表示整条轨迹中是否曾到达过目标附近，而 SR
+要求机器人最终真正停在目标附近；SPL
+在成功率基础上进一步考虑路径效率；nDTW
+则衡量实际导航轨迹与参考轨迹整体的相似程度。</p>
+<table>
+<colgroup>
+<col style="width: 22%" />
+<col style="width: 14%" />
+<col style="width: 15%" />
+<col style="width: 14%" />
+<col style="width: 15%" />
+<col style="width: 17%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>方法</th>
+<th style="text-align: right;">R2R-CE SR↑</th>
+<th style="text-align: right;">R2R-CE SPL↑</th>
+<th style="text-align: right;">RxR-CE SR↑</th>
+<th style="text-align: right;">RxR-CE SPL↑</th>
+<th style="text-align: right;">RxR-CE nDTW↑</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>NaVILA</td>
+<td style="text-align: right;">54.0</td>
+<td style="text-align: right;">49.0</td>
+<td style="text-align: right;">49.3</td>
+<td style="text-align: right;">44.0</td>
+<td style="text-align: right;">58.8</td>
+</tr>
+<tr class="even">
+<td>StreamVLN</td>
+<td style="text-align: right;">56.9</td>
+<td style="text-align: right;">51.9</td>
+<td style="text-align: right;">52.9</td>
+<td style="text-align: right;">46.0</td>
+<td style="text-align: right;">61.9</td>
+</tr>
+<tr class="odd">
+<td>CorrectNav</td>
+<td style="text-align: right;">65.1</td>
+<td style="text-align: right;">62.3</td>
+<td style="text-align: right;">69.3</td>
+<td style="text-align: right;">63.3</td>
+<td style="text-align: right;">75.2</td>
+</tr>
+<tr class="even">
+<td><strong>MobileVLA-R1</strong></td>
+<td style="text-align: right;"><strong>68.3</strong></td>
+<td style="text-align: right;"><strong>65.2</strong></td>
+<td style="text-align: right;"><strong>71.5</strong></td>
+<td style="text-align: right;"><strong>66.8</strong></td>
+<td style="text-align: right;"><strong>76.1</strong></td>
+</tr>
+</tbody>
+</table>
+<p>MobileVLA-R1 在两个数据集上都取得了最高的 SR 和 SPL。相比初始化模型
+NaVILA，R2R-CE 的 SR 从 54.0 提升到 68.3，RxR-CE 则从 49.3 提升到
+71.5；即使与更强的 CorrectNav 相比，也分别提升了 3.2 和 2.2
+个百分点。论文特别指出，这里的 MobileVLA-R1 没有使用 simulator 预训练的
+waypoint predictor，而部分传统 VLN
+方法依赖这一额外模块，因此作者主要强调的是在不依赖 waypoint predictor
+的方法中取得更好的结果。</p>
+<p><strong>QUARD</strong></p>
+<p>论文在 Distinguish、Go to、Go avoid、Go through、Crawl 和 Unload
+六类任务上进行评测，每项结果都是 25 个 evaluation episodes
+的成功率。</p>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 14%" />
+<col style="width: 10%" />
+<col style="width: 10%" />
+<col style="width: 12%" />
+<col style="width: 10%" />
+<col style="width: 10%" />
+<col style="width: 10%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>方法</th>
+<th style="text-align: right;">Distinguish</th>
+<th style="text-align: right;">Go to</th>
+<th style="text-align: right;">Go avoid</th>
+<th style="text-align: right;">Go through</th>
+<th style="text-align: right;">Crawl</th>
+<th style="text-align: right;">Unload</th>
+<th style="text-align: right;">Average</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>CLIP</td>
+<td style="text-align: right;">0.44</td>
+<td style="text-align: right;">0.43</td>
+<td style="text-align: right;">0.45</td>
+<td style="text-align: right;">0.19</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.25</td>
+</tr>
+<tr class="even">
+<td>VC-1</td>
+<td style="text-align: right;">0.46</td>
+<td style="text-align: right;">0.43</td>
+<td style="text-align: right;">0.45</td>
+<td style="text-align: right;">0.31</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.28</td>
+</tr>
+<tr class="odd">
+<td>QUART</td>
+<td style="text-align: right;">0.66</td>
+<td style="text-align: right;">0.60</td>
+<td style="text-align: right;">0.53</td>
+<td style="text-align: right;">0.41</td>
+<td style="text-align: right;">0.32</td>
+<td style="text-align: right;">0.12</td>
+<td style="text-align: right;">0.44</td>
+</tr>
+<tr class="even">
+<td>MoRE</td>
+<td style="text-align: right;">0.82</td>
+<td style="text-align: right;">0.80</td>
+<td style="text-align: right;">0.59</td>
+<td style="text-align: right;">0.57</td>
+<td style="text-align: right;">0.49</td>
+<td style="text-align: right;">0.33</td>
+<td style="text-align: right;">0.60</td>
+</tr>
+<tr class="odd">
+<td><strong>MobileVLA-R1</strong></td>
+<td style="text-align: right;"><strong>0.92</strong></td>
+<td style="text-align: right;"><strong>0.89</strong></td>
+<td style="text-align: right;"><strong>0.71</strong></td>
+<td style="text-align: right;"><strong>0.65</strong></td>
+<td style="text-align: right;"><strong>0.58</strong></td>
+<td style="text-align: right;"><strong>0.44</strong></td>
+<td style="text-align: right;"><strong>0.73</strong></td>
+</tr>
+</tbody>
+</table>
+<p>MobileVLA-R1 在六类任务上都取得了最高成功率，平均成功率达到
+0.73，相比 MoRE 的 0.60 有比较明显的提升。Easy 的 Distinguish 和 Go to
+已经接近 0.9，而 Crawl、Unload
+这类需要更复杂身体动作的任务仍然明显更难，但 MobileVLA-R1
+在这些任务上也保持了优势。</p>
+<p><strong>真机实验</strong></p>
+<p>真机实验使用 Unitree Go2，搭载 L2 LiDAR、Intel RealSense D435i RGB-D
+相机和 Jetson Orin Nano。模型接收 RGB、Depth 和 3D Point Cloud，在
+Workspace、Corridor 和 Outdoor 三种环境中执行 Simple 和 Complex
+两类自然语言指令。算力不足时，机器人会把感知数据发送到远程 H20，由
+MobileVLA-R1 完成推理后再将速度和动作命令发送回机器人执行。</p>
+<table>
+<colgroup>
+<col style="width: 12%" />
+<col style="width: 15%" />
+<col style="width: 15%" />
+<col style="width: 14%" />
+<col style="width: 15%" />
+<col style="width: 13%" />
+<col style="width: 14%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>方法</th>
+<th style="text-align: right;">Workspace Simple SR↑</th>
+<th style="text-align: right;">Workspace Complex SR↑</th>
+<th style="text-align: right;">Corridor Simple SR↑</th>
+<th style="text-align: right;">Corridor Complex SR↑</th>
+<th style="text-align: right;">Outdoor Simple SR↑</th>
+<th style="text-align: right;">Outdoor Complex SR↑</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>GPT-4o</td>
+<td style="text-align: right;">0.67</td>
+<td style="text-align: right;">0.33</td>
+<td style="text-align: right;">0.53</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.67</td>
+<td style="text-align: right;">0.50</td>
+</tr>
+<tr class="even">
+<td>NaVILA</td>
+<td style="text-align: right;">0.83</td>
+<td style="text-align: right;">0.80</td>
+<td style="text-align: right;">0.89</td>
+<td style="text-align: right;">0.67</td>
+<td style="text-align: right;">0.91</td>
+<td style="text-align: right;">0.83</td>
+</tr>
+<tr class="odd">
+<td><strong>MobileVLA-R1</strong></td>
+<td style="text-align: right;"><strong>0.93</strong></td>
+<td style="text-align: right;"><strong>0.91</strong></td>
+<td style="text-align: right;"><strong>1.00</strong></td>
+<td style="text-align: right;"><strong>0.86</strong></td>
+<td style="text-align: right;"><strong>1.00</strong></td>
+<td style="text-align: right;"><strong>0.96</strong></td>
+</tr>
+</tbody>
+</table>
+<p>MobileVLA-R1 在三类环境和两种指令难度下都高于 GPT-4o 和
+NaVILA。相比简单指令，更值得注意的是 Complex
+setting：Workspace、Corridor 和 Outdoor 的成功率分别达到 0.91、0.86 和
+0.96，说明前面通过 CoT 和 GRPO
+学到的长程推理与动作对齐能力能够迁移到论文设置下的真实机器人环境。</p>
+<p><strong>Reward 消融</strong></p>
+<p>论文进一步在 R2R-CE Val-Unseen 上分别移除 Movement、Action 和 Format
+Reward，验证 GRPO 中三种奖励的作用。</p>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 8%" />
+<col style="width: 32%" />
+<col style="width: 32%" />
+<col style="width: 13%" />
+<col style="width: 13%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: center;"><span
+class="math inline">\(R_m\)</span></th>
+<th style="text-align: center;"><span
+class="math inline">\(R_{\text{action}}\)</span></th>
+<th style="text-align: center;"><span
+class="math inline">\(R_{\text{format}}\)</span></th>
+<th style="text-align: right;">SR↑</th>
+<th style="text-align: right;">SPL↑</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">✗</td>
+<td style="text-align: center;">✗</td>
+<td style="text-align: center;">✗</td>
+<td style="text-align: right;">58.0</td>
+<td style="text-align: right;">53.2</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✗</td>
+<td style="text-align: center;">✗</td>
+<td style="text-align: right;">60.7</td>
+<td style="text-align: right;">55.5</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">✗</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✗</td>
+<td style="text-align: right;">61.9</td>
+<td style="text-align: right;">56.8</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">✗</td>
+<td style="text-align: center;">✗</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: right;">59.6</td>
+<td style="text-align: right;">54.7</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✗</td>
+<td style="text-align: right;">64.5</td>
+<td style="text-align: right;">60.2</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✗</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: right;">63.4</td>
+<td style="text-align: right;">59.1</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">✗</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: right;">65.2</td>
+<td style="text-align: right;">61.0</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: right;"><strong>68.3</strong></td>
+<td style="text-align: right;"><strong>65.2</strong></td>
+</tr>
+</tbody>
+</table>
+<p>不使用 GRPO reward、只保留 SFT 时，SR 为 58.0；加入完整的三种 reward
+后提升到 68.3。单独来看 Action Reward
+的提升最大，说明高层动作是否正确对导航结果影响比较直接；三种 reward
+两两组合后效果都会继续提升，而完整组合取得最好结果，说明运动方向、离散动作和输出格式在训练中起到了互补作用。</p>
 <h2 id="fsr-vln-融合几何与图像两条路线的快慢推理">FSR-VLN:
 融合几何与图像两条路线的快慢推理</h2>
 <p>论文链接：</p>
-<p><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2509.13733">FSR-VLN Fast and Slow
+<p><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2509.13733">FSR-VLN: Fast and Slow
 Reasoning for Vision-Language Navigation with Hierarchical Multi-modal
 Scene Graph</a></p>
 <pre><code class="highlight mermaid">flowchart LR
