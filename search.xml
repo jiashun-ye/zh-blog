@@ -1,9 +1,44 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
-    <title>Transformer：用注意力重构序列建模</title>
-    <url>/zh-blog/2026/08/08/Transformer%EF%BC%9A%E7%94%A8%E6%B3%A8%E6%84%8F%E5%8A%9B%E9%87%8D%E6%9E%84%E5%BA%8F%E5%88%97%E5%BB%BA%E6%A8%A1/</url>
-    <content><![CDATA[<span id="more"></span>
+    <title>Transformer：抛弃循环与卷积的序列建模</title>
+    <url>/zh-blog/2026/08/08/Transformer%EF%BC%9A%E6%8A%9B%E5%BC%83%E5%BE%AA%E7%8E%AF%E4%B8%8E%E5%8D%B7%E7%A7%AF%E7%9A%84%E5%BA%8F%E5%88%97%E5%BB%BA%E6%A8%A1/</url>
+    <content><![CDATA[<p>本文是对 <em>Attention Is All You Need</em>
+的精读笔记。本文按照论文的结构，依次梳理其研究动机，模型架构中的Encoder-Decoder、Self-Attention、Multi-Head
+Attention、三种
+attention、前馈网络与位置编码、残差连接等，Self-Attention
+优势论证，以及训练配置与实验结果，并梳理论文本身的结论与后续研究方向。</p>
+<span id="more"></span>
+<p>论文链接：</p>
+<p><a href="https://arxiv.org/pdf/1706.03762">Attention Is All You
+Need</a></p>
+<h2 id="研究背景">研究背景</h2>
+<p>在 Transformer 提出之前，序列建模的主流方法是 RNN，包括 LSTM、GRU
+等变体。它们按照位置顺序递归计算隐藏状态 <span class="math inline">\(h_t
+= f(h_{t-1}, x_t)\)</span>。</p>
+<p>这种结构存在两个根本性缺陷。第一，无法并行计算，必须等前一步计算完成后才能继续计算下一步，因此训练效率较低。第二，长程依赖难以捕捉。两个距离较远的位置之间，信息需要经过多步传递，传播路径越长，信息越容易衰减。</p>
+<p>Transformer 的核心思想是彻底舍弃循环和卷积结构，完全依靠 attention
+机制建模序列中任意两个位置之间的依赖关系，从而同时解决并行计算和长程依赖这两个问题。</p>
+<h2 id="模型架构与核心原理">模型架构与核心原理</h2>
+<h3 id="encoder-decoder">Encoder-Decoder</h3>
+<h3 id="self-attention-机制">Self-Attention 机制</h3>
+<h3 id="multi-head-attention">Multi-Head Attention</h3>
+<h3 id="前馈网络与位置编码">前馈网络与位置编码</h3>
+<h3 id="残差连接与-layernorm">残差连接与 LayerNorm</h3>
+<h2 id="self-attention的优势">Self-Attention的优势</h2>
+<h2 id="训练与实验结果">训练与实验结果</h2>
+<p>​</p>
+<h2 id="总结">总结</h2>
+<p>Transformer 是第一个完全基于注意力机制的序列模型，用 Multi-Head
+Self-Attention 替代了 encoder-decoder 架构中最常用的循环层。在 WMT 2014
+英译德、英译法两个翻译任务上，Transformer
+都取得了当时的最优结果，且训练速度远快于以往基于循环或卷积结构的模型。论文还通过英语成分句法分析任务的实验，验证了
+Transformer
+具备良好的任务泛化能力，即便在小数据量场景下也能取得有竞争力的结果，说明这一架构不局限于机器翻译。</p>
+<p>作者在结论部分提到几个计划推进的方向：一是将 Transformer
+拓展到文本以外的输入输出模态，如图像、音频、视频等；二是研究局部的、受限的注意力机制，以高效处理超长序列的输入输出；三是探索让生成过程更少依赖串行步骤的方法。这几个方向后来都在深度学习的发展中得到了印证：ViT
+把 attention
+用到了图像上，各类高效注意力针对长序列做了优化，扩散模型等非自回归生成方式减少串行依赖。</p>
 ]]></content>
       <categories>
         <category>论文研析</category>
@@ -837,8 +872,7 @@ MobileVLA-R1 完成推理后再将速度和动作命令发送回机器人执行�
 <p>MobileVLA-R1 在三类环境和两种指令难度下都高于 GPT-4o 和
 NaVILA。相比简单指令，更值得注意的是 Complex
 setting：Workspace、Corridor 和 Outdoor 的成功率分别达到 0.91、0.86 和
-0.96，说明前面通过 CoT 和 GRPO
-学到的长程推理与动作对齐能力能够迁移到论文设置下的真实机器人环境。</p>
+0.96，说明最终模型在包含多步推理和长程空间规划的指令下，也能够迁移到论文设置中的真实机器人环境。</p>
 <p><strong>Reward 消融</strong></p>
 <p>论文进一步在 R2R-CE Val-Unseen 上分别移除 Movement、Action 和 Format
 Reward，验证 GRPO 中三种奖励的作用。</p>
